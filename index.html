@@ -73,7 +73,6 @@
                     const isJump = Math.abs(selectedPiece.row - row) === 2;
                     movePiece(selectedPiece.row, selectedPiece.col, row, col, isJump);
                     selectedPiece = null;
-                    // Check for win
                     if (checkWin()) return;
                     currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
                     document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
@@ -100,7 +99,7 @@
             });
         }
 
-        function isValidMove(fromRow, fromRow, toRow, toCol) {
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
             if (board[toRow][toCol] !== null) return false;
             const rowDiff = Math.abs(fromRow - toRow);
             const colDiff = Math.abs(fromCol - toCol);
@@ -130,7 +129,7 @@
             if (isJump) {
                 const midRow = Math.floor((fromRow + toRow) / 2);
                 const midCol = Math.floor((fromCol + toCol) / 2);
-                board[midRow][midCol] = null;  // Capture!
+                board[midRow][midCol] = null;  // Capture the leaped piece!
             }
         }
 
@@ -165,7 +164,6 @@
             }
 
             if (bestMoves.length > 0) {
-                // Prefer jumps
                 const jumps = bestMoves.filter(m => m.isJump);
                 const chosen = jumps.length > 0 ? jumps[Math.floor(Math.random() * jumps.length)] : bestMoves[Math.floor(Math.random() * bestMoves.length)];
                 const isJump = chosen.isJump;
