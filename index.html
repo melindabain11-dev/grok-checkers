@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grok Checkers</title>
+    <title>Grok Checkers - Kings Edition</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; }
         #board { display: grid; grid-template-columns: repeat(8, 60px); width: 480px; margin: 20px auto; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
@@ -13,17 +13,18 @@
         .dark { background-color: #b58863; }
         .red { color: #e63939; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
         .black { color: #1d3557; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .king { font-size: 36px; text-shadow: 0 0 10px gold, 2px 2px 4px rgba(0,0,0,0.5); }
         #status { font-size: 22px; margin: 15px; font-weight: bold; color: #333; }
         button { padding: 10px 20px; font-size: 16px; background: #457b9d; color: white; border: none; border-radius: 8px; cursor: pointer; }
         button:hover { background: #1d3557; }
     </style>
 </head>
 <body>
-    <h1>Grok Checkers - Play with Grok!</h1>
+    <h1>Grok Checkers - Kings Edition 👑</h1>
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Standard rules: move forward only until you become a King! Jumps work great.</p>
+    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move in any direction.</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -31,11 +32,13 @@
 
         function initBoard() {
             board = Array(8).fill().map(() => Array(8).fill(null));
+            // Place black pieces (top)
             for (let row = 0; row < 3; row++) {
                 for (let col = 0; col < 8; col++) {
                     if ((row + col) % 2 === 1) board[row][col] = 'black';
                 }
             }
+            // Place red pieces (bottom)
             for (let row = 5; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     if ((row + col) % 2 === 1) board[row][col] = 'red';
@@ -54,8 +57,16 @@
                     square.dataset.row = row;
                     square.dataset.col = col;
                     if (board[row][col]) {
-                        square.innerHTML = board[row][col] === 'red' ? '🔴' : '⚫';
-                        square.classList.add(board[row][col]);
+                        const piece = board[row][col];
+                        let symbol;
+                        if (piece === 'red') symbol = '🔴';
+                        else if (piece === 'black') symbol = '⚫';
+                        else symbol = '👑';  // Both kings use crown
+                        square.innerHTML = symbol;
+                        square.classList.add(piece.startsWith('red') ? 'red' : 'black');
+                        if (piece.includes('_king')) {
+                            square.classList.add('king');
+                        }
                     }
                     square.addEventListener('click', handleClick);
                     boardEl.appendChild(square);
@@ -68,22 +79,21 @@
             const col = parseInt(e.target.dataset.col);
             if (selectedPiece) {
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
-                    const isJump = Math.abs(selectedPiece.row - row) === 2;
-                    movePiece(selectedPiece.row, selectedPiece.col, row, col, isJump);
+                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
                     selectedPiece = null;
-                    if (checkWin()) return;
                     currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
                     document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
                     renderBoard();
+                    // Simulate Grok's move if black's turn
                     if (currentPlayer === 'black') {
                         document.getElementById('status').textContent = "Grok is thinking...";
-                        setTimeout(grokMove, 700);
+                        setTimeout(grokMove, 600);
                     }
                 } else {
                     selectedPiece = null;
                     renderBoard();
                 }
-            } else if (board[row][col] === currentPlayer) {
+            } else if (board[row][col] && board[row][col].startsWith(currentPlayer)) {
                 selectedPiece = {row, col};
                 highlightSelected(row, col);
             }
@@ -101,99 +111,61 @@
         }
 
         function isValidMove(fromRow, fromCol, toRow, toCol) {
-            if (board[toRow][toCol] !== null) return false;
+            const piece = board[fromRow][fromCol];
+            if (!piece || board[toRow][toCol] !== null) return false;
             const rowDiff = Math.abs(fromRow - toRow);
             const colDiff = Math.abs(fromCol - toCol);
-            const player = currentPlayer;
-            const dir = player === 'red' ? -1 : 1;
-
-            // Simple forward diagonal
-            if (rowDiff === 1 && colDiff === 1 && toRow === fromRow + dir) {
-                return true;
+            if (rowDiff !== 1 || colDiff !== 1) return false;
+            if (piece.includes('_king')) {
+                return true; // Kings can move in any direction
+            } else {
+                const dir = piece === 'red' ? -1 : 1;
+                return toRow === fromRow + dir;
             }
-            // Jump forward over opponent
-            if (rowDiff === 2 && colDiff === 2 && toRow === fromRow + 2 * dir) {
-                const midRow = Math.floor((fromRow + toRow) / 2);
-                const midCol = Math.floor((fromCol + toCol) / 2);
-                const midPiece = board[midRow][midCol];
-                if (midPiece && midPiece !== player) {
-                    return true;
-                }
-            }
-            return false;
         }
 
-        function movePiece(fromRow, fromCol, toRow, toCol, isJump) {
-            board[toRow][toCol] = board[fromRow][fromCol];
+        function movePiece(fromRow, fromCol, toRow, toCol) {
+            let piece = board[fromRow][fromCol];
             board[fromRow][fromCol] = null;
-            if (isJump) {
-                const midRow = Math.floor((fromRow + toRow) / 2);
-                const midCol = Math.floor((fromCol + toCol) / 2);
-                board[midRow][midCol] = null;
+            if (piece && !piece.includes('_king')) {
+                // Promote to king if reaching the opposite side
+                if ((piece === 'red' && toRow === 0) || (piece === 'black' && toRow === 7)) {
+                    piece = piece + '_king';
+                }
             }
+            board[toRow][toCol] = piece;
         }
 
         function grokMove() {
-            let allMoves = [];
-            const dir = 1; // black always moves down (+row)
+            let moves = [];
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
-                    if (board[row][col] === 'black') {
-                        // Forward simple moves
-                        for (let dc of [-1, 1]) {
-                            let nr = row + dir;
-                            let nc = col + dc;
+                    const piece = board[row][col];
+                    if (piece && piece.includes('black')) {
+                        let dirs;
+                        if (piece.includes('_king')) {
+                            dirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Any direction for kings
+                        } else {
+                            dirs = [[1, -1], [1, 1]]; // Forward only for regular
+                        }
+                        for (let [dr, dc] of dirs) {
+                            let nr = row + dr, nc = col + dc;
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === null) {
-                                allMoves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc, isJump: false});
-                            }
-                            // Forward jump
-                            let jr = row + 2 * dir;
-                            let jc = col + 2 * dc;
-                            if (jr >= 0 && jr < 8 && jc >= 0 && jc < 8 && board[jr][jc] === null) {
-                                const midRow = row + dir;
-                                const midCol = col + dc;
-                                const midPiece = board[midRow][midCol];
-                                if (midPiece && midPiece !== 'black') {
-                                    allMoves.push({fromRow: row, fromCol: col, toRow: jr, toCol: jc, isJump: true});
-                                }
+                                moves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc});
                             }
                         }
                     }
                 }
             }
-
-            if (allMoves.length > 0) {
-                const jumps = allMoves.filter(m => m.isJump);
-                const chosen = jumps.length > 0 ? jumps[Math.floor(Math.random() * jumps.length)] : allMoves[Math.floor(Math.random() * allMoves.length)];
-                movePiece(chosen.fromRow, chosen.fromCol, chosen.toRow, chosen.toCol, chosen.isJump);
+            if (moves.length > 0) {
+                const move = moves[Math.floor(Math.random() * moves.length)];
+                movePiece(move.fromRow, move.fromCol, move.toRow, move.toCol);
                 currentPlayer = 'red';
                 document.getElementById('status').textContent = "Red's turn (You)";
                 renderBoard();
-                if (checkWin()) return;
             } else {
-                // No legal forward moves - Grok loses
-                document.getElementById('status').textContent = "Grok has no moves! You win! 🎉";
-                return;
+                document.getElementById('status').textContent = "Grok has no moves! You win!";
             }
-        }
-
-        function checkWin() {
-            let redCount = 0, blackCount = 0;
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    if (board[row][col] === 'red') redCount++;
-                    if (board[row][col] === 'black') blackCount++;
-                }
-            }
-            if (redCount === 0) {
-                document.getElementById('status').textContent = "Black wins! Grok wins! 🎉";
-                return true;
-            }
-            if (blackCount === 0) {
-                document.getElementById('status').textContent = "Red wins! You win! 🎉";
-                return true;
-            }
-            return false;
         }
 
         function resetGame() {
