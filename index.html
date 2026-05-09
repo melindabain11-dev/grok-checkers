@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grok Checkers</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        #board { display: grid; grid-template-columns: repeat(8, 50px); width: 400px; margin: 20px auto; border: 2px solid #333; }
-        .square { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 35px; cursor: pointer; }
+        body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; }
+        #board { display: grid; grid-template-columns: repeat(8, 60px); width: 480px; margin: 20px auto; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
+        .square { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 42px; cursor: pointer; transition: transform 0.1s; }
+        .square:hover { transform: scale(1.05); }
         .light { background-color: #f0d9b5; }
         .dark { background-color: #b58863; }
-        .red { color: red; }
-        .black { color: black; }
-        #status { font-size: 20px; margin: 10px; }
+        .red { color: #e63939; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .black { color: #1d3557; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #status { font-size: 22px; margin: 15px; font-weight: bold; color: #333; }
+        button { padding: 10px 20px; font-size: 16px; background: #457b9d; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        button:hover { background: #1d3557; }
     </style>
 </head>
 <body>
@@ -20,6 +23,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
+    <p style="color:#666; font-size:14px;">Click your piece, then a valid square. Jumps (leaps) now work!</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -27,12 +31,13 @@
 
         function initBoard() {
             board = Array(8).fill().map(() => Array(8).fill(null));
-            // Place pieces
+            // Place black pieces (top)
             for (let row = 0; row < 3; row++) {
                 for (let col = 0; col < 8; col++) {
                     if ((row + col) % 2 === 1) board[row][col] = 'black';
                 }
             }
+            // Place red pieces (bottom)
             for (let row = 5; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     if ((row + col) % 2 === 1) board[row][col] = 'red';
@@ -64,60 +69,131 @@
             const row = parseInt(e.target.dataset.row);
             const col = parseInt(e.target.dataset.col);
             if (selectedPiece) {
-                // Try move
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
-                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                    const isJump = Math.abs(selectedPiece.row - row) === 2;
+                    movePiece(selectedPiece.row, selectedPiece.col, row, col, isJump);
                     selectedPiece = null;
+                    // Check for win
+                    if (checkWin()) return;
                     currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
                     document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
                     renderBoard();
-                    // Simulate Grok's move if black's turn
-                    if (currentPlayer === 'black') setTimeout(grokMove, 500);
+                    if (currentPlayer === 'black') setTimeout(grokMove, 600);
                 } else {
                     selectedPiece = null;
+                    renderBoard();
                 }
             } else if (board[row][col] === currentPlayer) {
                 selectedPiece = {row, col};
+                highlightSelected(row, col);
             }
         }
 
-        function isValidMove(fromRow, fromCol, toRow, toCol) {
-            if (Math.abs(fromRow - toRow) !== 1 || Math.abs(fromCol - toCol) !== 1) return false;
-            if (board[toRow][toCol] !== null) return false;
-            const dir = currentPlayer === 'red' ? -1 : 1;
-            if (toRow !== fromRow + dir) return false;
-            return true;
+        function highlightSelected(row, col) {
+            renderBoard();
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(sq => {
+                if (parseInt(sq.dataset.row) === row && parseInt(sq.dataset.col) === col) {
+                    sq.style.border = '3px solid #ffd700';
+                    sq.style.boxShadow = '0 0 15px #ffd700';
+                }
+            });
         }
 
-        function movePiece(fromRow, fromCol, toRow, toCol) {
+        function isValidMove(fromRow, fromRow, toRow, toCol) {
+            if (board[toRow][toCol] !== null) return false;
+            const rowDiff = Math.abs(fromRow - toRow);
+            const colDiff = Math.abs(fromCol - toCol);
+            const player = currentPlayer;
+            const dir = player === 'red' ? -1 : 1;
+
+            // Simple move (1 step forward diagonal)
+            if (rowDiff === 1 && colDiff === 1) {
+                if (toRow === fromRow + dir) return true;
+            }
+
+            // Jump move (2 steps, over opponent)
+            if (rowDiff === 2 && colDiff === 2) {
+                const midRow = Math.floor((fromRow + toRow) / 2);
+                const midCol = Math.floor((fromCol + toCol) / 2);
+                const midPiece = board[midRow][midCol];
+                if (midPiece && midPiece !== player && toRow === fromRow + 2 * dir) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function movePiece(fromRow, fromCol, toRow, toCol, isJump) {
             board[toRow][toCol] = board[fromRow][fromCol];
             board[fromRow][fromCol] = null;
+            if (isJump) {
+                const midRow = Math.floor((fromRow + toRow) / 2);
+                const midCol = Math.floor((fromCol + toCol) / 2);
+                board[midRow][midCol] = null;  // Capture!
+            }
         }
 
         function grokMove() {
-            // Simple AI: random valid move for black
-            let moves = [];
+            let bestMoves = [];
+            let hasJumps = false;
+
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     if (board[row][col] === 'black') {
-                        // Check possible moves
-                        const dirs = [[1, -1], [1, 1]];
-                        for (let [dr, dc] of dirs) {
+                        // Check jumps first (priority)
+                        const jumpDirs = [[2, -2], [2, 2]];
+                        for (let [dr, dc] of jumpDirs) {
                             let nr = row + dr, nc = col + dc;
-                            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === null) {
-                                moves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc});
+                            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                                bestMoves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc, isJump: true});
+                                hasJumps = true;
+                            }
+                        }
+                        if (!hasJumps) {
+                            // Simple moves
+                            const simpleDirs = [[1, -1], [1, 1]];
+                            for (let [dr, dc] of simpleDirs) {
+                                let nr = row + dr, nc = col + dc;
+                                if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                                    bestMoves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc, isJump: false});
+                                }
                             }
                         }
                     }
                 }
             }
-            if (moves.length > 0) {
-                const move = moves[Math.floor(Math.random() * moves.length)];
-                movePiece(move.fromRow, move.fromCol, move.toRow, move.toCol);
+
+            if (bestMoves.length > 0) {
+                // Prefer jumps
+                const jumps = bestMoves.filter(m => m.isJump);
+                const chosen = jumps.length > 0 ? jumps[Math.floor(Math.random() * jumps.length)] : bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                const isJump = chosen.isJump;
+                movePiece(chosen.fromRow, chosen.fromCol, chosen.toRow, chosen.toCol, isJump);
                 currentPlayer = 'red';
                 document.getElementById('status').textContent = "Red's turn (You)";
                 renderBoard();
+                if (checkWin()) return;
             }
+        }
+
+        function checkWin() {
+            let redCount = 0, blackCount = 0;
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if (board[row][col] === 'red') redCount++;
+                    if (board[row][col] === 'black') blackCount++;
+                }
+            }
+            if (redCount === 0) {
+                document.getElementById('status').textContent = "Black wins! Grok wins! 🎉";
+                return true;
+            }
+            if (blackCount === 0) {
+                document.getElementById('status').textContent = "Red wins! You win! 🎉";
+                return true;
+            }
+            return false;
         }
 
         function resetGame() {
