@@ -23,7 +23,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Jumps now work! Grok thinks before moving.</p>
+    <p style="color:#666; font-size:14px;">Standard rules: move forward only until you become a King! Jumps work great.</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -77,7 +77,7 @@
                     renderBoard();
                     if (currentPlayer === 'black') {
                         document.getElementById('status').textContent = "Grok is thinking...";
-                        setTimeout(grokMove, 800);
+                        setTimeout(grokMove, 700);
                     }
                 } else {
                     selectedPiece = null;
@@ -107,14 +107,16 @@
             const player = currentPlayer;
             const dir = player === 'red' ? -1 : 1;
 
-            if (rowDiff === 1 && colDiff === 1) {
-                if (toRow === fromRow + dir) return true;
+            // Simple forward diagonal
+            if (rowDiff === 1 && colDiff === 1 && toRow === fromRow + dir) {
+                return true;
             }
-            if (rowDiff === 2 && colDiff === 2) {
+            // Jump forward over opponent
+            if (rowDiff === 2 && colDiff === 2 && toRow === fromRow + 2 * dir) {
                 const midRow = Math.floor((fromRow + toRow) / 2);
                 const midCol = Math.floor((fromCol + toCol) / 2);
                 const midPiece = board[midRow][midCol];
-                if (midPiece && midPiece !== player && toRow === fromRow + 2 * dir) {
+                if (midPiece && midPiece !== player) {
                     return true;
                 }
             }
@@ -133,27 +135,23 @@
 
         function grokMove() {
             let allMoves = [];
+            const dir = 1; // black always moves down (+row)
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     if (board[row][col] === 'black') {
-                        // Check all 4 diagonal directions for jumps and simple
-                        const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];  // allow any diagonal for now to avoid stuck
-                        for (let [dr, dc] of directions) {
-                            // Simple
-                            let nr = row + dr, nc = col + dc;
+                        // Forward simple moves
+                        for (let dc of [-1, 1]) {
+                            let nr = row + dir;
+                            let nc = col + dc;
                             if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === null) {
-                                // Only forward for correctness, but to unstick we allow
-                                if (Math.abs(dr) === 1) {
-                                    const dir = 1; // black forward
-                                    if (nr === row + dir) {
-                                        allMoves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc, isJump: false});
-                                    }
-                                }
+                                allMoves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc, isJump: false});
                             }
-                            // Jump
-                            let jr = row + dr*2, jc = col + dc*2;
+                            // Forward jump
+                            let jr = row + 2 * dir;
+                            let jc = col + 2 * dc;
                             if (jr >= 0 && jr < 8 && jc >= 0 && jc < 8 && board[jr][jc] === null) {
-                                const midRow = row + dr, midCol = col + dc;
+                                const midRow = row + dir;
+                                const midCol = col + dc;
                                 const midPiece = board[midRow][midCol];
                                 if (midPiece && midPiece !== 'black') {
                                     allMoves.push({fromRow: row, fromCol: col, toRow: jr, toCol: jc, isJump: true});
@@ -165,22 +163,18 @@
             }
 
             if (allMoves.length > 0) {
-                // Prefer jumps
                 const jumps = allMoves.filter(m => m.isJump);
                 const chosen = jumps.length > 0 ? jumps[Math.floor(Math.random() * jumps.length)] : allMoves[Math.floor(Math.random() * allMoves.length)];
                 movePiece(chosen.fromRow, chosen.fromCol, chosen.toRow, chosen.toCol, chosen.isJump);
-            } else {
-                // No moves - switch turn (rare)
                 currentPlayer = 'red';
-                document.getElementById('status').textContent = "Red's turn (You) - Grok had no moves!";
+                document.getElementById('status').textContent = "Red's turn (You)";
                 renderBoard();
+                if (checkWin()) return;
+            } else {
+                // No legal forward moves - Grok loses
+                document.getElementById('status').textContent = "Grok has no moves! You win! 🎉";
                 return;
             }
-
-            currentPlayer = 'red';
-            document.getElementById('status').textContent = "Red's turn (You)";
-            renderBoard();
-            if (checkWin()) return;
         }
 
         function checkWin() {
