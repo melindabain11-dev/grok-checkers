@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grok Checkers</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #board { display: grid; grid-template-columns: repeat(8, 50px); width: 400px; margin: 20px auto; border: 2px solid #333; }
+        .square { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 35px; cursor: pointer; }
+        .light { background-color: #f0d9b5; }
+        .dark { background-color: #b58863; }
+        .red { color: red; }
+        .black { color: black; }
+        #status { font-size: 20px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Grok Checkers - Play with Grok!</h1>
+    <div id="status">Red's turn (You are Red)</div>
+    <div id="board"></div>
+    <button onclick="resetGame()">New Game</button>
+    <script>
+        let board = Array(8).fill().map(() => Array(8).fill(null));
+        let currentPlayer = 'red';
+        let selectedPiece = null;
+
+        function initBoard() {
+            board = Array(8).fill().map(() => Array(8).fill(null));
+            // Place pieces
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if ((row + col) % 2 === 1) board[row][col] = 'black';
+                }
+            }
+            for (let row = 5; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if ((row + col) % 2 === 1) board[row][col] = 'red';
+                }
+            }
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    if (board[row][col]) {
+                        square.innerHTML = board[row][col] === 'red' ? '🔴' : '⚫';
+                        square.classList.add(board[row][col]);
+                    }
+                    square.addEventListener('click', handleClick);
+                    boardEl.appendChild(square);
+                }
+            }
+        }
+
+        function handleClick(e) {
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            if (selectedPiece) {
+                // Try move
+                if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
+                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                    selectedPiece = null;
+                    currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
+                    document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
+                    renderBoard();
+                    // Simulate Grok's move if black's turn
+                    if (currentPlayer === 'black') setTimeout(grokMove, 500);
+                } else {
+                    selectedPiece = null;
+                }
+            } else if (board[row][col] === currentPlayer) {
+                selectedPiece = {row, col};
+            }
+        }
+
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
+            if (Math.abs(fromRow - toRow) !== 1 || Math.abs(fromCol - toCol) !== 1) return false;
+            if (board[toRow][toCol] !== null) return false;
+            const dir = currentPlayer === 'red' ? -1 : 1;
+            if (toRow !== fromRow + dir) return false;
+            return true;
+        }
+
+        function movePiece(fromRow, fromCol, toRow, toCol) {
+            board[toRow][toCol] = board[fromRow][fromCol];
+            board[fromRow][fromCol] = null;
+        }
+
+        function grokMove() {
+            // Simple AI: random valid move for black
+            let moves = [];
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if (board[row][col] === 'black') {
+                        // Check possible moves
+                        const dirs = [[1, -1], [1, 1]];
+                        for (let [dr, dc] of dirs) {
+                            let nr = row + dr, nc = col + dc;
+                            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === null) {
+                                moves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc});
+                            }
+                        }
+                    }
+                }
+            }
+            if (moves.length > 0) {
+                const move = moves[Math.floor(Math.random() * moves.length)];
+                movePiece(move.fromRow, move.fromCol, move.toRow, move.toCol);
+                currentPlayer = 'red';
+                document.getElementById('status').textContent = "Red's turn (You)";
+                renderBoard();
+            }
+        }
+
+        function resetGame() {
+            initBoard();
+            currentPlayer = 'red';
+            document.getElementById('status').textContent = "Red's turn (You are Red)";
+        }
+
+        initBoard();
+    </script>
+</body>
+</html>
