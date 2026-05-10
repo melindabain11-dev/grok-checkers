@@ -24,7 +24,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move in any direction.</p>
+    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move/jump in any direction. Jumps are mandatory? (not yet enforced)</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -113,22 +113,57 @@
         function isValidMove(fromRow, fromCol, toRow, toCol) {
             const piece = board[fromRow][fromCol];
             if (!piece || board[toRow][toCol] !== null) return false;
+
             const rowDiff = Math.abs(fromRow - toRow);
             const colDiff = Math.abs(fromCol - toCol);
-            if (rowDiff !== 1 || colDiff !== 1) return false;
-            if (piece.includes('_king')) {
-                return true; // Kings can move in any direction
-            } else {
-                const dir = piece === 'red' ? -1 : 1;
+
+            // Only diagonal moves allowed
+            if (rowDiff !== colDiff || (rowDiff !== 1 && rowDiff !== 2)) return false;
+
+            const isKing = piece.includes('_king');
+            const player = piece.startsWith('red') ? 'red' : 'black';
+            const opponent = player === 'red' ? 'black' : 'red';
+
+            // Single step (non-capture)
+            if (rowDiff === 1) {
+                if (isKing) return true;
+                const dir = player === 'red' ? -1 : 1;
                 return toRow === fromRow + dir;
             }
+
+            // Jump (capture) - rowDiff === 2
+            if (rowDiff === 2) {
+                const midRow = (fromRow + toRow) / 2;
+                const midCol = (fromCol + toCol) / 2;
+                const midPiece = board[midRow][midCol];
+
+                // Must have opponent piece in the middle square
+                if (!midPiece || !midPiece.startsWith(opponent)) return false;
+
+                // Direction check for non-kings
+                if (!isKing) {
+                    const dir = player === 'red' ? -1 : 1;
+                    return toRow === fromRow + 2 * dir;
+                }
+                return true; // Kings can jump in any direction
+            }
+            return false;
         }
 
         function movePiece(fromRow, fromCol, toRow, toCol) {
             let piece = board[fromRow][fromCol];
             board[fromRow][fromCol] = null;
-            if (piece && !piece.includes('_king')) {
-                // Promote to king if reaching the opposite side
+
+            // Handle capture (jump) - remove the jumped piece
+            const rowDiff = Math.abs(fromRow - toRow);
+            if (rowDiff === 2) {
+                const midRow = (fromRow + toRow) / 2;
+                const midCol = (fromCol + toCol) / 2;
+                board[midRow][midCol] = null; // Capture!
+            }
+
+            // Promote to king on reaching opposite side
+            if (!piece.includes('_king')) {
                 if ((piece === 'red' && toRow === 0) || (piece === 'black' && toRow === 7)) {
                     piece = piece + '_king';
                 }
@@ -137,34 +172,52 @@
         }
 
         function grokMove() {
-            let moves = [];
+            // Simple AI: prefer jumps when possible, otherwise any valid move
+            let bestMove = null;
+            let isJump = false;
+
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     const piece = board[row][col];
-                    if (piece && piece.includes('black')) {
-                        let dirs;
-                        if (piece.includes('_king')) {
-                            dirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Any direction for kings
-                        } else {
-                            dirs = [[1, -1], [1, 1]]; // Forward only for regular
-                        }
-                        for (let [dr, dc] of dirs) {
-                            let nr = row + dr, nc = col + dc;
-                            if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] === null) {
-                                moves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc});
+                    if (!piece || !piece.includes('black')) continue;
+
+                    let dirs;
+                    if (piece.includes('_king')) {
+                        dirs = [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]];
+                    } else {
+                        dirs = [[2,-2], [2,2], [1,-1], [1,1]];
+                    }
+
+                    for (let [dr, dc] of dirs) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                            if (isValidMove(row, col, nr, nc)) {
+                                // Prefer jumps over simple moves
+                                if (Math.abs(dr) === 2) {
+                                    bestMove = {fromRow: row, fromCol: col, toRow: nr, toCol: nc};
+                                    isJump = true;
+                                    break; // Take first jump found
+                                }
+                                if (!isJump) {
+                                    bestMove = {fromRow: row, fromCol: col, toRow: nr, toCol: nc};
+                                }
                             }
                         }
                     }
+                    if (isJump && bestMove) break;
                 }
+                if (isJump && bestMove) break;
             }
-            if (moves.length > 0) {
-                const move = moves[Math.floor(Math.random() * moves.length)];
-                movePiece(move.fromRow, move.fromCol, move.toRow, move.toCol);
+
+            if (bestMove) {
+                movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
                 currentPlayer = 'red';
-                document.getElementById('status').textContent = "Red's turn (You)";
+                document.getElementById('status').textContent = "Red's turn (You are Red)";
                 renderBoard();
             } else {
-                document.getElementById('status').textContent = "Grok has no moves! You win!";
+                // No moves left → game over
+                document.getElementById('status').textContent = "Grok has no moves left! You win!";
             }
         }
 
