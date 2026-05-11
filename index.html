@@ -24,11 +24,12 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move/jump in any direction. Jumps are mandatory? (not yet enforced)</p>
+    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move/jump in any direction. A King wins by returning to the far side of the board (Red King to row 7, Black King to row 0).</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
         let selectedPiece = null;
+        let gameOver = false;
 
         function initBoard() {
             board = Array(8).fill().map(() => Array(8).fill(null));
@@ -44,6 +45,7 @@
                     if ((row + col) % 2 === 1) board[row][col] = 'red';
                 }
             }
+            gameOver = false;
             renderBoard();
         }
 
@@ -59,9 +61,13 @@
                     if (board[row][col]) {
                         const piece = board[row][col];
                         let symbol;
-                        if (piece === 'red') symbol = '🔴';
-                        else if (piece === 'black') symbol = '⚫';
-                        else symbol = '👑';  // Both kings use crown
+                        if (piece.includes('_king')) {
+                            symbol = piece.startsWith('red') ? '👑' : '♚';
+                        } else if (piece === 'red') {
+                            symbol = '🔴';
+                        } else if (piece === 'black') {
+                            symbol = '⚫';
+                        }
                         square.innerHTML = symbol;
                         square.classList.add(piece.startsWith('red') ? 'red' : 'black');
                         if (piece.includes('_king')) {
@@ -75,12 +81,18 @@
         }
 
         function handleClick(e) {
+            if (gameOver) return;
             const row = parseInt(e.target.dataset.row);
             const col = parseInt(e.target.dataset.col);
             if (selectedPiece) {
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
                     movePiece(selectedPiece.row, selectedPiece.col, row, col);
                     selectedPiece = null;
+                    if (checkForKingWin()) {
+                        gameOver = true;
+                        renderBoard();
+                        return;
+                    }
                     currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
                     document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
                     renderBoard();
@@ -171,7 +183,27 @@
             board[toRow][toCol] = piece;
         }
 
+        function checkForKingWin() {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece && piece.includes('_king')) {
+                        if (piece.startsWith('red') && row === 7) {
+                            document.getElementById('status').textContent = "🔴 Red King has returned home! Red wins! 🎉";
+                            return true;
+                        }
+                        if (piece.startsWith('black') && row === 0) {
+                            document.getElementById('status').textContent = "♚ Black King has returned home! Grok wins! 😎";
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
         function grokMove() {
+            if (gameOver) return;
             // Simple AI: prefer jumps when possible, otherwise any valid move
             let bestMove = null;
             let isJump = false;
@@ -212,12 +244,18 @@
 
             if (bestMove) {
                 movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
+                if (checkForKingWin()) {
+                    gameOver = true;
+                    renderBoard();
+                    return;
+                }
                 currentPlayer = 'red';
                 document.getElementById('status').textContent = "Red's turn (You are Red)";
                 renderBoard();
             } else {
                 // No moves left → game over
                 document.getElementById('status').textContent = "Grok has no moves left! You win!";
+                gameOver = true;
             }
         }
 
@@ -225,6 +263,7 @@
             initBoard();
             currentPlayer = 'red';
             document.getElementById('status').textContent = "Red's turn (You are Red)";
+            gameOver = false;
         }
 
         initBoard();
