@@ -24,7 +24,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move/jump in any direction. A King wins by returning to the far side of the board (Red King to row 7, Black King to row 0).</p>
+    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move/jump in any direction. A King wins by returning to the far side of the board (Red King to row 7, Black King to row 0). Capture all opponent pieces to win!</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -88,7 +88,7 @@
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
                     movePiece(selectedPiece.row, selectedPiece.col, row, col);
                     selectedPiece = null;
-                    if (checkForKingWin()) {
+                    if (checkForKingWin() || checkForPieceWin()) {
                         gameOver = true;
                         renderBoard();
                         return;
@@ -189,15 +189,38 @@
                     const piece = board[row][col];
                     if (piece && piece.includes('_king')) {
                         if (piece.startsWith('red') && row === 7) {
-                            document.getElementById('status').textContent = "🔴 Red King has returned home! Red wins! 🎉";
+                            document.getElementById('status').textContent = "🔴 Red King has returned home! Red wins! 🎉 Click 'New Game' to play again!";
                             return true;
                         }
                         if (piece.startsWith('black') && row === 0) {
-                            document.getElementById('status').textContent = "♚ Black King has returned home! Grok wins! 😎";
+                            document.getElementById('status').textContent = "♚ Black King has returned home! Grok wins! 😎 Click 'New Game' to play again!";
                             return true;
                         }
                     }
                 }
+            }
+            return false;
+        }
+
+        function checkForPieceWin() {
+            let redPieces = 0;
+            let blackPieces = 0;
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        if (piece.startsWith('red')) redPieces++;
+                        else blackPieces++;
+                    }
+                }
+            }
+            if (redPieces === 0) {
+                document.getElementById('status').textContent = "♚ Grok wins! All your pieces were captured! 😎 Click 'New Game' to play again!";
+                return true;
+            }
+            if (blackPieces === 0) {
+                document.getElementById('status').textContent = "🔴 You win! All Grok's pieces were captured! 🎉 Click 'New Game' to play again!";
+                return true;
             }
             return false;
         }
@@ -244,7 +267,7 @@
 
             if (bestMove) {
                 movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
-                if (checkForKingWin()) {
+                if (checkForKingWin() || checkForPieceWin()) {
                     gameOver = true;
                     renderBoard();
                     return;
@@ -254,7 +277,7 @@
                 renderBoard();
             } else {
                 // No moves left → game over
-                document.getElementById('status').textContent = "Grok has no moves left! You win!";
+                document.getElementById('status').textContent = "Grok has no moves left! You win! Click 'New Game' to play again!";
                 gameOver = true;
             }
         }
