@@ -24,7 +24,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Mandatory captures are now enforced! Grok uses advanced minimax AI (depth 3 + alpha-beta). Reach the opposite side to promote to King! Kings win by returning home (Red King to row 7, Black King to row 0). Capture all opponent pieces to win too!</p>
+    <p style="color:#666; font-size:14px;">Mandatory captures are now enforced (standard checkers rules)! Grok uses advanced minimax AI. You can only select pieces that have a capture when one is available. Kings win by returning home (Red to row 7, Black to row 0).</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -33,13 +33,11 @@
 
         function initBoard() {
             board = Array(8).fill().map(() => Array(8).fill(null));
-            // Place black pieces (top)
             for (let row = 0; row < 3; row++) {
                 for (let col = 0; col < 8; col++) {
                     if ((row + col) % 2 === 1) board[row][col] = 'black';
                 }
             }
-            // Place red pieces (bottom)
             for (let row = 5; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     if ((row + col) % 2 === 1) board[row][col] = 'red';
@@ -47,6 +45,7 @@
             }
             gameOver = false;
             renderBoard();
+            updateStatus();
         }
 
         function renderBoard() {
@@ -78,6 +77,14 @@
                     boardEl.appendChild(square);
                 }
             }
+        }
+
+        function updateStatus() {
+            let text = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
+            if (currentPlayer === 'red' && hasMandatoryCapture('red')) {
+                text += " (Capture required!)";
+            }
+            document.getElementById('status').textContent = text;
         }
 
         function hasMandatoryCapture(player) {
@@ -193,7 +200,7 @@
             const opponent = player === 'red' ? 'black' : 'red';
 
             if (rowDiff === 1) {
-                if (hasMandatoryCapture(player)) return false; // must capture if possible
+                if (hasMandatoryCapture(player)) return false;
                 if (isKing) return true;
                 const dir = player === 'red' ? -1 : 1;
                 return toRow === fromRow + dir;
@@ -288,7 +295,7 @@
                         return;
                     }
                     currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
-                    document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
+                    updateStatus();
                     renderBoard();
                     if (currentPlayer === 'black') {
                         document.getElementById('status').textContent = "Grok is thinking...";
@@ -299,6 +306,23 @@
                     renderBoard();
                 }
             } else if (board[row][col] && board[row][col].startsWith(currentPlayer)) {
+                if (hasMandatoryCapture(currentPlayer)) {
+                    let canCapture = false;
+                    const piece = board[row][col];
+                    const isKingPiece = piece.includes('_king');
+                    const jumpDirs = isKingPiece ? 
+                        [[-2,-2], [-2,2], [2,-2], [2,2]] : 
+                        (currentPlayer === 'red' ? [[-2,-2], [-2,2]] : [[2,-2], [2,2]]);
+                    for (let [dr, dc] of jumpDirs) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                            canCapture = true;
+                            break;
+                        }
+                    }
+                    if (!canCapture) return; // prevent selecting pieces without a capture
+                }
                 selectedPiece = {row, col};
                 highlightSelected(row, col);
             }
@@ -346,7 +370,7 @@
                     return;
                 }
                 currentPlayer = 'red';
-                document.getElementById('status').textContent = "Red's turn (You are Red)";
+                updateStatus();
                 renderBoard();
             }
         }
@@ -354,7 +378,7 @@
         function resetGame() {
             initBoard();
             currentPlayer = 'red';
-            document.getElementById('status').textContent = "Red's turn (You are Red)";
+            updateStatus();
             gameOver = false;
         }
 
