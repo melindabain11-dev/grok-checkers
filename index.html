@@ -7,7 +7,7 @@
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; }
         #board { display: grid; grid-template-columns: repeat(8, 60px); width: 480px; margin: 20px auto; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
-        .square { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 42px; cursor: pointer; transition: transform 0.1s; }
+        .square { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 42px; cursor: pointer; transition: transform 0.1s; position: relative; }
         .square:hover { transform: scale(1.05); }
         .light { background-color: #f0d9b5; }
         .dark { background-color: #b58863; }
@@ -17,6 +17,17 @@
         #status { font-size: 22px; margin: 15px; font-weight: bold; color: #333; }
         button { padding: 10px 20px; font-size: 16px; background: #457b9d; color: white; border: none; border-radius: 8px; cursor: pointer; }
         button:hover { background: #1d3557; }
+        
+        @keyframes capturePop {
+            0% { transform: scale(1) rotate(0deg); }
+            40% { transform: scale(1.6) rotate(15deg); }
+            70% { transform: scale(0.8) rotate(-10deg); }
+            100% { transform: scale(0) rotate(0deg); opacity: 0; }
+        }
+        .captured {
+            animation: capturePop 0.4s ease-out forwards;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -24,12 +35,84 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Mandatory captures are now enforced (standard checkers rules)! Grok uses advanced minimax AI. You can only select pieces that have a capture when one is available. Kings win by returning home (Red to row 7, Black to row 0).</p>
+    <p style="color:#666; font-size:14px;">Mandatory captures enforced • Smarter minimax AI • Click sounds + capture pops + king fanfare!</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
         let selectedPiece = null;
         let gameOver = false;
+        let audioCtx;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            try {
+                const ctx = getAudioContext();
+                if (type === 'win') {
+                    playWinMelody(ctx);
+                    return;
+                }
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'select') {
+                    osc.type = 'sine';
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.18;
+                    setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.08), 30);
+                } else if (type === 'move') {
+                    osc.type = 'triangle';
+                    osc.frequency.value = 620;
+                    gain.gain.value = 0.12;
+                    setTimeout(() => osc.frequency.linearRampToValueAtTime(420, ctx.currentTime + 0.18), 20);
+                    setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.22), 60);
+                } else if (type === 'capture') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.value = 180;
+                    gain.gain.value = 0.35;
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 650;
+                    setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.45), 80);
+                } else if (type === 'promote') {
+                    osc.type = 'sine';
+                    osc.frequency.value = 523;
+                    gain.gain.value = 0.22;
+                    setTimeout(() => osc.frequency.linearRampToValueAtTime(1046, ctx.currentTime + 0.35), 40);
+                    setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.55), 150);
+                }
+                osc.start();
+                setTimeout(() => osc.stop(), 700);
+            } catch(e) {}
+        }
+
+        function playWinMelody(ctx) {
+            const notes = [523, 659, 784, 1046, 1318];
+            notes.forEach((freq, i) => {
+                setTimeout(() => {
+                    try {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.type = 'sine';
+                        o.frequency.value = freq;
+                        g.gain.value = 0.2;
+                        o.connect(g);
+                        g.connect(ctx.destination);
+                        o.start();
+                        setTimeout(() => g.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.35), 80);
+                        setTimeout(() => o.stop(), 450);
+                    } catch(e) {}
+                }, i * 110);
+            });
+        }
 
         function initBoard() {
             board = Array(8).fill().map(() => Array(8).fill(null));
@@ -225,18 +308,35 @@
             board[fromRow][fromCol] = null;
 
             const rowDiff = Math.abs(fromRow - toRow);
+            let captured = false;
             if (rowDiff === 2) {
                 const midRow = (fromRow + toRow) / 2;
                 const midCol = (fromCol + toCol) / 2;
                 board[midRow][midCol] = null;
+                captured = true;
+                playSound('capture');
+                // Trigger capture animation on the DOM element
+                setTimeout(() => {
+                    const squares = document.querySelectorAll('.square');
+                    squares.forEach(sq => {
+                        if (parseInt(sq.dataset.row) === midRow && parseInt(sq.dataset.col) === midCol) {
+                            sq.classList.add('captured');
+                            setTimeout(() => sq.classList.remove('captured'), 450);
+                        }
+                    });
+                }, 10);
+            } else {
+                playSound('move');
             }
 
             if (!piece.includes('_king')) {
                 if ((piece === 'red' && toRow === 0) || (piece === 'black' && toRow === 7)) {
                     piece = piece + '_king';
+                    playSound('promote');
                 }
             }
             board[toRow][toCol] = piece;
+            return captured;
         }
 
         function checkForKingWin() {
@@ -245,10 +345,12 @@
                     const piece = board[row][col];
                     if (piece && piece.includes('_king')) {
                         if (piece.startsWith('red') && row === 7) {
+                            playSound('win');
                             document.getElementById('status').textContent = "🔴 Red King has returned home! Red wins! 🎉 Click 'New Game' to play again!";
                             return true;
                         }
                         if (piece.startsWith('black') && row === 0) {
+                            playSound('win');
                             document.getElementById('status').textContent = "♚ Black King has returned home! Grok wins! 😎 Click 'New Game' to play again!";
                             return true;
                         }
@@ -271,10 +373,12 @@
                 }
             }
             if (redPieces === 0) {
+                playSound('win');
                 document.getElementById('status').textContent = "♚ Grok wins! All your pieces were captured! 😎 Click 'New Game' to play again!";
                 return true;
             }
             if (blackPieces === 0) {
+                playSound('win');
                 document.getElementById('status').textContent = "🔴 You win! All Grok's pieces were captured! 🎉 Click 'New Game' to play again!";
                 return true;
             }
@@ -287,7 +391,8 @@
             const col = parseInt(e.target.dataset.col);
             if (selectedPiece) {
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
-                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                    playSound('select');
+                    const wasCapture = movePiece(selectedPiece.row, selectedPiece.col, row, col);
                     selectedPiece = null;
                     if (checkForKingWin() || checkForPieceWin()) {
                         gameOver = true;
@@ -299,7 +404,7 @@
                     renderBoard();
                     if (currentPlayer === 'black') {
                         document.getElementById('status').textContent = "Grok is thinking...";
-                        setTimeout(grokMove, 300);
+                        setTimeout(grokMove, 450);
                     }
                 } else {
                     selectedPiece = null;
@@ -321,8 +426,9 @@
                             break;
                         }
                     }
-                    if (!canCapture) return; // prevent selecting pieces without a capture
+                    if (!canCapture) return;
                 }
+                playSound('select');
                 selectedPiece = {row, col};
                 highlightSelected(row, col);
             }
@@ -363,7 +469,7 @@
             }
 
             if (bestMove) {
-                movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
+                const wasCapture = movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
                 if (checkForKingWin() || checkForPieceWin()) {
                     gameOver = true;
                     renderBoard();
