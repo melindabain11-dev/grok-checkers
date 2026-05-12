@@ -7,7 +7,7 @@
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; }
         #board { display: grid; grid-template-columns: repeat(8, 60px); width: 480px; margin: 20px auto; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
-        .square { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 42px; cursor: pointer; transition: transform 0.1s; position: relative; }
+        .square { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 42px; cursor: pointer; transition: transform 0.1s; position: relative; overflow: visible; }
         .square:hover { transform: scale(1.05); }
         .light { background-color: #f0d9b5; }
         .dark { background-color: #b58863; }
@@ -17,16 +17,23 @@
         #status { font-size: 22px; margin: 15px; font-weight: bold; color: #333; }
         button { padding: 10px 20px; font-size: 16px; background: #457b9d; color: white; border: none; border-radius: 8px; cursor: pointer; }
         button:hover { background: #1d3557; }
-        
+
         @keyframes capturePop {
-            0% { transform: scale(1) rotate(0deg); }
-            40% { transform: scale(1.6) rotate(15deg); }
-            70% { transform: scale(0.8) rotate(-10deg); }
-            100% { transform: scale(0) rotate(0deg); opacity: 0; }
+            0% { transform: scale(1); }
+            30% { transform: scale(1.3); }
+            100% { transform: scale(0.6); opacity: 0; }
         }
         .captured {
-            animation: capturePop 0.4s ease-out forwards;
-            z-index: 10;
+            animation: capturePop 0.45s ease-out forwards;
+            z-index: 5;
+        }
+
+        .particle {
+            position: absolute;
+            font-size: 18px;
+            pointer-events: none;
+            z-index: 20;
+            transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s ease-out;
         }
     </style>
 </head>
@@ -35,7 +42,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Mandatory captures enforced • Smarter minimax AI • Click sounds + capture pops + king fanfare!</p>
+    <p style="color:#666; font-size:14px;">Mandatory captures • Smarter AI • Juicy sounds + banana explosion captures! 🍌💥</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -44,48 +51,32 @@
         let audioCtx;
 
         function getAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             return audioCtx;
         }
 
         function playSound(type) {
             try {
                 const ctx = getAudioContext();
-                if (type === 'win') {
-                    playWinMelody(ctx);
-                    return;
-                }
+                if (type === 'win') { playWinMelody(ctx); return; }
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 const filter = ctx.createBiquadFilter();
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(ctx.destination);
+                osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
 
                 if (type === 'select') {
-                    osc.type = 'sine';
-                    osc.frequency.value = 880;
-                    gain.gain.value = 0.18;
+                    osc.type = 'sine'; osc.frequency.value = 880; gain.gain.value = 0.18;
                     setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.08), 30);
                 } else if (type === 'move') {
-                    osc.type = 'triangle';
-                    osc.frequency.value = 620;
-                    gain.gain.value = 0.12;
+                    osc.type = 'triangle'; osc.frequency.value = 620; gain.gain.value = 0.12;
                     setTimeout(() => osc.frequency.linearRampToValueAtTime(420, ctx.currentTime + 0.18), 20);
                     setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.22), 60);
                 } else if (type === 'capture') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.value = 180;
-                    gain.gain.value = 0.35;
-                    filter.type = 'lowpass';
-                    filter.frequency.value = 650;
+                    osc.type = 'sawtooth'; osc.frequency.value = 180; gain.gain.value = 0.35;
+                    filter.type = 'lowpass'; filter.frequency.value = 650;
                     setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.45), 80);
                 } else if (type === 'promote') {
-                    osc.type = 'sine';
-                    osc.frequency.value = 523;
-                    gain.gain.value = 0.22;
+                    osc.type = 'sine'; osc.frequency.value = 523; gain.gain.value = 0.22;
                     setTimeout(() => osc.frequency.linearRampToValueAtTime(1046, ctx.currentTime + 0.35), 40);
                     setTimeout(() => gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.55), 150);
                 }
@@ -99,19 +90,61 @@
             notes.forEach((freq, i) => {
                 setTimeout(() => {
                     try {
-                        const o = ctx.createOscillator();
-                        const g = ctx.createGain();
-                        o.type = 'sine';
-                        o.frequency.value = freq;
-                        g.gain.value = 0.2;
-                        o.connect(g);
-                        g.connect(ctx.destination);
-                        o.start();
+                        const o = ctx.createOscillator(); const g = ctx.createGain();
+                        o.type = 'sine'; o.frequency.value = freq; g.gain.value = 0.2;
+                        o.connect(g); g.connect(ctx.destination); o.start();
                         setTimeout(() => g.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.35), 80);
                         setTimeout(() => o.stop(), 450);
                     } catch(e) {}
                 }, i * 110);
             });
+        }
+
+        function createCaptureExplosion(midRow, midCol, isRed) {
+            const boardEl = document.getElementById('board');
+            const squares = boardEl.getElementsByClassName('square');
+            let midSquare = null;
+            for (let sq of squares) {
+                if (parseInt(sq.dataset.row) === midRow && parseInt(sq.dataset.col) === midCol) {
+                    midSquare = sq; break;
+                }
+            }
+            if (!midSquare) return;
+
+            const colors = isRed ? ['#e63939', '#ff6b6b', '#ff8787'] : ['#1d3557', '#457b9d', '#5c9ce6'];
+            const emojis = isRed ? ['🔴', '💥', '🔥'] : ['⚫', '💥', '✨'];
+
+            for (let i = 0; i < 9; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                particle.style.color = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.left = '50%';
+                particle.style.top = '50%';
+                particle.style.transform = 'translate(-50%, -50%)';
+
+                midSquare.appendChild(particle);
+
+                const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+                const distance = 45 + Math.random() * 35;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance - 15; // slight upward bias
+
+                setTimeout(() => {
+                    particle.style.transition = 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.65s ease-out';
+                    particle.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px))`;
+                    particle.style.opacity = '0';
+                }, 10);
+
+                setTimeout(() => particle.remove(), 750);
+            }
+
+            // gentle pop on the square itself
+            midSquare.style.transition = 'transform 0.2s ease';
+            midSquare.style.transform = 'scale(1.15)';
+            setTimeout(() => {
+                midSquare.style.transform = 'scale(1)';
+            }, 180);
         }
 
         function initBoard() {
@@ -312,19 +345,11 @@
             if (rowDiff === 2) {
                 const midRow = (fromRow + toRow) / 2;
                 const midCol = (fromCol + toCol) / 2;
+                const isRedCapture = board[midRow][midCol] && board[midRow][midCol].startsWith('red');
                 board[midRow][midCol] = null;
                 captured = true;
                 playSound('capture');
-                // Trigger capture animation on the DOM element
-                setTimeout(() => {
-                    const squares = document.querySelectorAll('.square');
-                    squares.forEach(sq => {
-                        if (parseInt(sq.dataset.row) === midRow && parseInt(sq.dataset.col) === midCol) {
-                            sq.classList.add('captured');
-                            setTimeout(() => sq.classList.remove('captured'), 450);
-                        }
-                    });
-                }, 10);
+                createCaptureExplosion(midRow, midCol, isRedCapture);
             } else {
                 playSound('move');
             }
@@ -392,7 +417,7 @@
             if (selectedPiece) {
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
                     playSound('select');
-                    const wasCapture = movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
                     selectedPiece = null;
                     if (checkForKingWin() || checkForPieceWin()) {
                         gameOver = true;
@@ -469,7 +494,7 @@
             }
 
             if (bestMove) {
-                const wasCapture = movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
+                movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
                 if (checkForKingWin() || checkForPieceWin()) {
                     gameOver = true;
                     renderBoard();
