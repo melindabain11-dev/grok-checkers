@@ -24,7 +24,7 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Reach the opposite side to promote to King! Kings move/jump in any direction. A King wins by returning to the far side of the board (Red King to row 7, Black King to row 0). Capture all opponent pieces to win!</p>
+    <p style="color:#666; font-size:14px;">Mandatory captures are now enforced! Grok uses advanced minimax AI (depth 3 + alpha-beta). Reach the opposite side to promote to King! Kings win by returning home (Red King to row 7, Black King to row 0). Capture all opponent pieces to win too!</p>
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
@@ -80,46 +80,103 @@
             }
         }
 
-        function handleClick(e) {
-            if (gameOver) return;
-            const row = parseInt(e.target.dataset.row);
-            const col = parseInt(e.target.dataset.col);
-            if (selectedPiece) {
-                if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
-                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
-                    selectedPiece = null;
-                    if (checkForKingWin() || checkForPieceWin()) {
-                        gameOver = true;
-                        renderBoard();
-                        return;
+        function hasMandatoryCapture(player) {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (!piece || !piece.startsWith(player)) continue;
+                    const isKing = piece.includes('_king');
+                    const dirs = isKing ? 
+                        [[-2,-2], [-2,2], [2,-2], [2,2]] : 
+                        (player === 'red' ? [[-2,-2], [-2,2]] : [[2,-2], [2,2]]);
+                    for (let [dr, dc] of dirs) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                            return true;
+                        }
                     }
-                    currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
-                    document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
-                    renderBoard();
-                    // Simulate Grok's move if black's turn
-                    if (currentPlayer === 'black') {
-                        document.getElementById('status').textContent = "Grok is thinking...";
-                        setTimeout(grokMove, 600);
-                    }
-                } else {
-                    selectedPiece = null;
-                    renderBoard();
                 }
-            } else if (board[row][col] && board[row][col].startsWith(currentPlayer)) {
-                selectedPiece = {row, col};
-                highlightSelected(row, col);
             }
+            return false;
         }
 
-        function highlightSelected(row, col) {
-            renderBoard();
-            const squares = document.querySelectorAll('.square');
-            squares.forEach(sq => {
-                if (parseInt(sq.dataset.row) === row && parseInt(sq.dataset.col) === col) {
-                    sq.style.border = '3px solid #ffd700';
-                    sq.style.boxShadow = '0 0 15px #ffd700';
+        function getAllValidMoves(player) {
+            const moves = [];
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (!piece || !piece.startsWith(player)) continue;
+                    const isKing = piece.includes('_king');
+                    const dirs = isKing ? 
+                        [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]] : 
+                        (player === 'red' ? [[-2,-2], [-2,2], [-1,-1], [-1,1]] : [[2,-2], [2,2], [1,-1], [1,1]]);
+                    for (let [dr, dc] of dirs) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                            moves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc});
+                        }
+                    }
                 }
-            });
+            }
+            return moves;
+        }
+
+        function copyBoard() {
+            return board.map(row => row.slice());
+        }
+
+        function evaluateBoard() {
+            let score = 0;
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const p = board[r][c];
+                    if (!p) continue;
+                    const isBlack = p.startsWith('black');
+                    const val = p.includes('_king') ? 4.5 : 1;
+                    score += isBlack ? val : -val;
+                    if (p.includes('_king')) {
+                        score += isBlack ? (7 - r) * 0.25 : r * 0.25;
+                    } else {
+                        score += isBlack ? r * 0.12 : (7 - r) * 0.12;
+                    }
+                }
+            }
+            return score;
+        }
+
+        function minimax(depth, alpha, beta, maximizing) {
+            if (depth === 0) return evaluateBoard();
+            const player = maximizing ? 'black' : 'red';
+            let moves = getAllValidMoves(player);
+            if (moves.length === 0) return maximizing ? -9999 : 9999;
+
+            if (maximizing) {
+                let maxEval = -Infinity;
+                for (let m of moves) {
+                    const saved = copyBoard();
+                    movePiece(m.fromRow, m.fromCol, m.toRow, m.toCol);
+                    const evalScore = minimax(depth - 1, alpha, beta, false);
+                    board = saved;
+                    maxEval = Math.max(maxEval, evalScore);
+                    alpha = Math.max(alpha, maxEval);
+                    if (beta <= alpha) break;
+                }
+                return maxEval;
+            } else {
+                let minEval = Infinity;
+                for (let m of moves) {
+                    const saved = copyBoard();
+                    movePiece(m.fromRow, m.fromCol, m.toRow, m.toCol);
+                    const evalScore = minimax(depth - 1, alpha, beta, true);
+                    board = saved;
+                    minEval = Math.min(minEval, evalScore);
+                    beta = Math.min(beta, minEval);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
+            }
         }
 
         function isValidMove(fromRow, fromCol, toRow, toCol) {
@@ -129,35 +186,29 @@
             const rowDiff = Math.abs(fromRow - toRow);
             const colDiff = Math.abs(fromCol - toCol);
 
-            // Only diagonal moves allowed
             if (rowDiff !== colDiff || (rowDiff !== 1 && rowDiff !== 2)) return false;
 
             const isKing = piece.includes('_king');
             const player = piece.startsWith('red') ? 'red' : 'black';
             const opponent = player === 'red' ? 'black' : 'red';
 
-            // Single step (non-capture)
             if (rowDiff === 1) {
+                if (hasMandatoryCapture(player)) return false; // must capture if possible
                 if (isKing) return true;
                 const dir = player === 'red' ? -1 : 1;
                 return toRow === fromRow + dir;
             }
 
-            // Jump (capture) - rowDiff === 2
             if (rowDiff === 2) {
                 const midRow = (fromRow + toRow) / 2;
                 const midCol = (fromCol + toCol) / 2;
                 const midPiece = board[midRow][midCol];
-
-                // Must have opponent piece in the middle square
                 if (!midPiece || !midPiece.startsWith(opponent)) return false;
-
-                // Direction check for non-kings
                 if (!isKing) {
                     const dir = player === 'red' ? -1 : 1;
                     return toRow === fromRow + 2 * dir;
                 }
-                return true; // Kings can jump in any direction
+                return true;
             }
             return false;
         }
@@ -166,15 +217,13 @@
             let piece = board[fromRow][fromCol];
             board[fromRow][fromCol] = null;
 
-            // Handle capture (jump) - remove the jumped piece
             const rowDiff = Math.abs(fromRow - toRow);
             if (rowDiff === 2) {
                 const midRow = (fromRow + toRow) / 2;
                 const midCol = (fromCol + toCol) / 2;
-                board[midRow][midCol] = null; // Capture!
+                board[midRow][midCol] = null;
             }
 
-            // Promote to king on reaching opposite side
             if (!piece.includes('_king')) {
                 if ((piece === 'red' && toRow === 0) || (piece === 'black' && toRow === 7)) {
                     piece = piece + '_king';
@@ -225,44 +274,68 @@
             return false;
         }
 
+        function handleClick(e) {
+            if (gameOver) return;
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            if (selectedPiece) {
+                if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
+                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                    selectedPiece = null;
+                    if (checkForKingWin() || checkForPieceWin()) {
+                        gameOver = true;
+                        renderBoard();
+                        return;
+                    }
+                    currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
+                    document.getElementById('status').textContent = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
+                    renderBoard();
+                    if (currentPlayer === 'black') {
+                        document.getElementById('status').textContent = "Grok is thinking...";
+                        setTimeout(grokMove, 300);
+                    }
+                } else {
+                    selectedPiece = null;
+                    renderBoard();
+                }
+            } else if (board[row][col] && board[row][col].startsWith(currentPlayer)) {
+                selectedPiece = {row, col};
+                highlightSelected(row, col);
+            }
+        }
+
+        function highlightSelected(row, col) {
+            renderBoard();
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(sq => {
+                if (parseInt(sq.dataset.row) === row && parseInt(sq.dataset.col) === col) {
+                    sq.style.border = '3px solid #ffd700';
+                    sq.style.boxShadow = '0 0 15px #ffd700';
+                }
+            });
+        }
+
         function grokMove() {
             if (gameOver) return;
-            // Simple AI: prefer jumps when possible, otherwise any valid move
+            const moves = getAllValidMoves('black');
+            if (moves.length === 0) {
+                document.getElementById('status').textContent = "Grok has no moves left! You win! Click 'New Game' to play again!";
+                gameOver = true;
+                renderBoard();
+                return;
+            }
+
             let bestMove = null;
-            let isJump = false;
-
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    const piece = board[row][col];
-                    if (!piece || !piece.includes('black')) continue;
-
-                    let dirs;
-                    if (piece.includes('_king')) {
-                        dirs = [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]];
-                    } else {
-                        dirs = [[2,-2], [2,2], [1,-1], [1,1]];
-                    }
-
-                    for (let [dr, dc] of dirs) {
-                        const nr = row + dr;
-                        const nc = col + dc;
-                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-                            if (isValidMove(row, col, nr, nc)) {
-                                // Prefer jumps over simple moves
-                                if (Math.abs(dr) === 2) {
-                                    bestMove = {fromRow: row, fromCol: col, toRow: nr, toCol: nc};
-                                    isJump = true;
-                                    break; // Take first jump found
-                                }
-                                if (!isJump) {
-                                    bestMove = {fromRow: row, fromCol: col, toRow: nr, toCol: nc};
-                                }
-                            }
-                        }
-                    }
-                    if (isJump && bestMove) break;
+            let bestScore = -Infinity;
+            for (let m of moves) {
+                const saved = copyBoard();
+                movePiece(m.fromRow, m.fromCol, m.toRow, m.toCol);
+                const score = minimax(3, -Infinity, Infinity, false);
+                board = saved;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = m;
                 }
-                if (isJump && bestMove) break;
             }
 
             if (bestMove) {
@@ -275,10 +348,6 @@
                 currentPlayer = 'red';
                 document.getElementById('status').textContent = "Red's turn (You are Red)";
                 renderBoard();
-            } else {
-                // No moves left → game over
-                document.getElementById('status').textContent = "Grok has no moves left! You win! Click 'New Game' to play again!";
-                gameOver = true;
             }
         }
 
