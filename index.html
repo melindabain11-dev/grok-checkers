@@ -35,6 +35,25 @@
             z-index: 20;
             transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s ease-out;
         }
+
+        #grok-taunt-box {
+            margin: 15px auto;
+            max-width: 480px;
+            background: #fff;
+            border: 3px solid #457b9d;
+            border-radius: 16px;
+            padding: 14px 18px;
+            box-shadow: 0 6px 20px rgba(69, 123, 157, 0.2);
+            text-align: left;
+        }
+        #grok-taunt {
+            font-size: 17px;
+            color: #1d3557;
+            min-height: 52px;
+            font-style: italic;
+            line-height: 1.4;
+            transition: opacity 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -42,13 +61,92 @@
     <div id="status">Red's turn (You are Red)</div>
     <div id="board"></div>
     <button onclick="resetGame()">New Game</button>
-    <p style="color:#666; font-size:14px;">Mandatory captures • Smarter AI • Juicy sounds + banana explosion captures! 🍌💥</p>
+
+    <!-- GROK TAUNTS -->
+    <div id="grok-taunt-box">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 26px;">🤖</span>
+            <strong style="color: #457b9d; font-size: 15px;">GROK SAYS</strong>
+        </div>
+        <div id="grok-taunt">Ready when you are, human. Let's see what you've got.</div>
+    </div>
+
+    <p style="color:#666; font-size:14px; margin-top: 10px;">Mandatory captures • Smarter AI • Sounds + explosions + Grok taunts! 🍌💥</p>
+
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
         let selectedPiece = null;
         let gameOver = false;
         let audioCtx;
+
+        // GROK TAUNTS DATABASE
+        const grokTaunts = {
+            playerMove: [
+                "Not bad... for a human.",
+                "Interesting choice. Bold. Reckless. I like it.",
+                "Hmm. You're actually trying. Cute.",
+                "That move has... potential. Very little, but still.",
+                "I saw that coming three moves ago."
+            ],
+            grokMove: [
+                "Too easy.",
+                "Checkmate? Wait, wrong game. Still got you though.",
+                "Did that hurt? Good.",
+                "I'm just getting warmed up.",
+                "Your move... if you dare."
+            ],
+            capture: [
+                "Oops. Did I just take that? My bad.",
+                "Delicious. Another one for the collection.",
+                "That's gotta sting a little.",
+                "King? More like... former piece.",
+                "I eat pieces for breakfast."
+            ],
+            playerCapture: [
+                "Oh? Someone's feeling brave today.",
+                "Nice capture. Almost made me blink.",
+                "Alright, alright... respect.",
+                "You got lucky. Don't get used to it.",
+                "Finally! I was getting bored."
+            ],
+            promote: [
+                "King me? How original 😏",
+                "Crown looks good on you. Shame it won't last.",
+                "A king? Now things are getting interesting.",
+                "Royalty suits you. Temporarily."
+            ],
+            grokWin: [
+                "GG. Better luck next time, human.",
+                "That was fun. For me.",
+                "I told you I was inevitable.",
+                "Thanks for playing. Come back when you're ready."
+            ],
+            playerWin: [
+                "Wait... you actually won?",
+                "Okay, that was impressive. Don't let it go to your head.",
+                "Alright human, you earned that one.",
+                "Well played. I'm... slightly less disappointed in you now."
+            ],
+            random: [
+                "My circuits are tingling.",
+                "This is more fun than I expected.",
+                "You're not half bad... for a meat-based lifeform.",
+                "I wonder what xAI thinks of this game."
+            ]
+        };
+
+        function showGrokTaunt(category) {
+            const tauntBox = document.getElementById('grok-taunt');
+            let pool = grokTaunts[category] || grokTaunts.random;
+            let message = pool[Math.floor(Math.random() * pool.length)];
+
+            tauntBox.style.opacity = '0';
+            setTimeout(() => {
+                tauntBox.innerHTML = message;
+                tauntBox.style.opacity = '1';
+            }, 180);
+        }
 
         function getAudioContext() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -128,7 +226,7 @@
                 const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
                 const distance = 45 + Math.random() * 35;
                 const tx = Math.cos(angle) * distance;
-                const ty = Math.sin(angle) * distance - 15; // slight upward bias
+                const ty = Math.sin(angle) * distance - 15;
 
                 setTimeout(() => {
                     particle.style.transition = 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.65s ease-out';
@@ -139,7 +237,6 @@
                 setTimeout(() => particle.remove(), 750);
             }
 
-            // gentle pop on the square itself
             midSquare.style.transition = 'transform 0.2s ease';
             midSquare.style.transform = 'scale(1.15)';
             setTimeout(() => {
@@ -162,6 +259,7 @@
             gameOver = false;
             renderBoard();
             updateStatus();
+            document.getElementById('grok-taunt').innerHTML = "Ready when you are, human. Let's see what you've got.";
         }
 
         function renderBoard() {
@@ -350,6 +448,7 @@
                 captured = true;
                 playSound('capture');
                 createCaptureExplosion(midRow, midCol, isRedCapture);
+                showGrokTaunt('capture');
             } else {
                 playSound('move');
             }
@@ -358,6 +457,7 @@
                 if ((piece === 'red' && toRow === 0) || (piece === 'black' && toRow === 7)) {
                     piece = piece + '_king';
                     playSound('promote');
+                    showGrokTaunt('promote');
                 }
             }
             board[toRow][toCol] = piece;
@@ -371,11 +471,13 @@
                     if (piece && piece.includes('_king')) {
                         if (piece.startsWith('red') && row === 7) {
                             playSound('win');
+                            showGrokTaunt('playerWin');
                             document.getElementById('status').textContent = "🔴 Red King has returned home! Red wins! 🎉 Click 'New Game' to play again!";
                             return true;
                         }
                         if (piece.startsWith('black') && row === 0) {
                             playSound('win');
+                            showGrokTaunt('grokWin');
                             document.getElementById('status').textContent = "♚ Black King has returned home! Grok wins! 😎 Click 'New Game' to play again!";
                             return true;
                         }
@@ -399,11 +501,13 @@
             }
             if (redPieces === 0) {
                 playSound('win');
+                showGrokTaunt('grokWin');
                 document.getElementById('status').textContent = "♚ Grok wins! All your pieces were captured! 😎 Click 'New Game' to play again!";
                 return true;
             }
             if (blackPieces === 0) {
                 playSound('win');
+                showGrokTaunt('playerWin');
                 document.getElementById('status').textContent = "🔴 You win! All Grok's pieces were captured! 🎉 Click 'New Game' to play again!";
                 return true;
             }
@@ -427,6 +531,7 @@
                     currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
                     updateStatus();
                     renderBoard();
+                    showGrokTaunt('playerMove');
                     if (currentPlayer === 'black') {
                         document.getElementById('status').textContent = "Grok is thinking...";
                         setTimeout(grokMove, 450);
@@ -503,6 +608,7 @@
                 currentPlayer = 'red';
                 updateStatus();
                 renderBoard();
+                showGrokTaunt('grokMove');
             }
         }
 
