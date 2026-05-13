@@ -3,75 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grok Checkers - Kings Edition</title>
+    <title>Grok Checkers • Kings Edition</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f5f5f5; }
-        #board { display: grid; grid-template-columns: repeat(8, 60px); width: 480px; margin: 20px auto; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
-        .square { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 42px; cursor: pointer; transition: transform 0.1s; position: relative; overflow: visible; }
-        .square:hover { transform: scale(1.05); }
-        .light { background-color: #f0d9b5; }
-        .dark { background-color: #b58863; }
-        .red { color: #e63939; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .black { color: #1d3557; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .king { font-size: 36px; text-shadow: 0 0 10px gold, 2px 2px 4px rgba(0,0,0,0.5); }
-        #status { font-size: 22px; margin: 15px; font-weight: bold; color: #333; }
-        button { padding: 10px 20px; font-size: 16px; background: #457b9d; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        button:hover { background: #1d3557; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
 
-        @keyframes capturePop {
-            0% { transform: scale(1); }
-            30% { transform: scale(1.3); }
-            100% { transform: scale(0.6); opacity: 0; }
-        }
-        .captured {
-            animation: capturePop 0.45s ease-out forwards;
-            z-index: 5;
+        :root {
+            --bg: #0a0a0f;
+            --panel: #111118;
+            --accent: #00f5ff;
+            --accent2: #ff00aa;
+            --gold: #ffd700;
+            --text: #e0e7ff;
+            --text-muted: #8b92b0;
         }
 
-        .particle {
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
             position: absolute;
-            font-size: 18px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 20%, rgba(0, 245, 255, 0.06) 0%, transparent 60%);
             pointer-events: none;
-            z-index: 20;
-            transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s ease-out;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 560px;
+            width: 100%;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 600;
+            letter-spacing: -0.04em;
+            margin: 0 0 8px;
+            background: linear-gradient(90deg, #e0e7ff, #00f5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 32px;
+            letter-spacing: 0.5px;
+        }
+
+        #status {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0 0 16px;
+            padding: 12px 24px;
+            background: rgba(17, 17, 24, 0.6);
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            border-radius: 9999px;
+            color: var(--accent);
+            box-shadow: 0 4px 20px rgba(0, 245, 255, 0.1);
+            backdrop-filter: blur(12px);
+            display: inline-block;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 58px);
+            gap: 3px;
+            width: fit-content;
+            margin: 0 auto 24px;
+            padding: 12px;
+            background: #111118;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 245, 255, 0.15);
+            box-shadow: 
+                0 0 0 1px rgba(0, 245, 255, 0.1),
+                0 20px 60px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255,255,255,0.08);
+            position: relative;
+        }
+
+        #board::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            background: linear-gradient(145deg, rgba(0,245,255,0.08), transparent);
+            border-radius: 21px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .square {
+            width: 58px;
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            border-radius: 8px;
+            user-select: none;
+        }
+
+        .square:hover {
+            transform: scale(1.08);
+            z-index: 2;
+        }
+
+        .square:active {
+            transform: scale(0.95);
+        }
+
+        .light {
+            background: linear-gradient(145deg, #2c354d, #1e2538);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4),
+                        0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .dark {
+            background: linear-gradient(145deg, #1a1f2e, #111118);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5),
+                        0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        .red {
+            color: #ff2d55;
+            filter: drop-shadow(0 0 8px rgba(255, 45, 85, 0.7));
+            text-shadow: 0 0 12px rgba(255, 45, 85, 0.5);
+        }
+
+        .black {
+            color: #a5b4fc;
+            filter: drop-shadow(0 0 8px rgba(165, 180, 252, 0.6));
+            text-shadow: 0 0 12px rgba(165, 180, 252, 0.4);
+        }
+
+        .king {
+            font-size: 34px;
+            filter: drop-shadow(0 0 14px #ffd700) drop-shadow(0 0 6px #ffd700);
+            animation: kingPulse 2.5s ease-in-out infinite;
+        }
+
+        @keyframes kingPulse {
+            0%, 100% { filter: drop-shadow(0 0 14px #ffd700) drop-shadow(0 0 6px #ffd700); }
+            50% { filter: drop-shadow(0 0 22px #ffd700) drop-shadow(0 0 10px #ffd700); }
+        }
+
+        .selected {
+            box-shadow: 0 0 0 3px #00f5ff,
+                        0 0 20px rgba(0, 245, 255, 0.5) !important;
+            z-index: 3;
+        }
+
+        button {
+            font-family: 'Inter', system_ui, sans-serif;
+            padding: 14px 32px;
+            font-size: 15px;
+            font-weight: 600;
+            background: transparent;
+            color: var(--accent);
+            border: 1.5px solid var(--accent);
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.5px;
+            margin: 8px 0 24px;
+        }
+
+        button:hover {
+            background: rgba(0, 245, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 245, 255, 0.3);
+            transform: translateY(-1px);
         }
 
         #grok-taunt-box {
-            margin: 15px auto;
+            background: rgba(17, 17, 24, 0.7);
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            border-radius: 20px;
+            padding: 18px 22px;
             max-width: 480px;
-            background: #fff;
-            border: 3px solid #457b9d;
-            border-radius: 16px;
-            padding: 14px 18px;
-            box-shadow: 0 6px 20px rgba(69, 123, 157, 0.2);
+            margin: 0 auto;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
             text-align: left;
         }
+
         #grok-taunt {
-            font-size: 17px;
-            color: #1d3557;
-            min-height: 52px;
+            font-size: 15.5px;
+            color: #c4c9e0;
+            line-height: 1.5;
+            min-height: 48px;
             font-style: italic;
-            line-height: 1.4;
-            transition: opacity 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .footer {
+            margin-top: 32px;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .footer span {
+            color: var(--accent);
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
-    <h1>Grok Checkers - Kings Edition 👑</h1>
-    <div id="status">Red's turn (You are Red)</div>
-    <div id="board"></div>
-    <button onclick="resetGame()">New Game</button>
+    <div class="container">
+        <h1>GROK CHECKERS</h1>
+        <div class="subtitle">KINGS EDITION • 2026</div>
 
-    <!-- GROK TAUNTS -->
-    <div id="grok-taunt-box">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-            <span style="font-size: 26px;">🤖</span>
-            <strong style="color: #457b9d; font-size: 15px;">GROK SAYS</strong>
+        <div id="status">Red's turn (You are Red)</div>
+
+        <div id="board"></div>
+
+        <button onclick="resetGame()">NEW GAME</button>
+
+        <!-- GROK TAUNTS -->
+        <div id="grok-taunt-box">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                <span style="font-size: 22px; filter: drop-shadow(0 0 6px #00f5ff);">🤖</span>
+                <strong style="color: #00f5ff; font-size: 13px; letter-spacing: 1px; font-weight: 600;">GROK SAYS</strong>
+            </div>
+            <div id="grok-taunt">Ready when you are, human. Let's see what you've got.</div>
         </div>
-        <div id="grok-taunt">Ready when you are, human. Let's see what you've got.</div>
-    </div>
 
-    <p style="color:#666; font-size:14px; margin-top: 10px;">Mandatory captures • Smarter AI • Sounds + explosions + Grok taunts! 🍌💥</p>
+        <div class="footer">
+            Premium dark mode • Mandatory captures • Minimax AI • Grok Taunts<br>
+            Built with ❤️ by Melinda & Grok
+        </div>
+    </div>
 
     <script>
         let board = Array(8).fill().map(() => Array(8).fill(null));
@@ -80,7 +266,6 @@
         let gameOver = false;
         let audioCtx;
 
-        // GROK TAUNTS DATABASE
         const grokTaunts = {
             playerMove: [
                 "Not bad... for a human.",
@@ -141,11 +326,13 @@
             let pool = grokTaunts[category] || grokTaunts.random;
             let message = pool[Math.floor(Math.random() * pool.length)];
 
+            tauntBox.style.transition = 'opacity 0.15s ease';
             tauntBox.style.opacity = '0';
             setTimeout(() => {
                 tauntBox.innerHTML = message;
+                tauntBox.style.transition = 'opacity 0.4s cubic-bezier(0.23, 1, 0.32, 1)';
                 tauntBox.style.opacity = '1';
-            }, 180);
+            }, 160);
         }
 
         function getAudioContext() {
@@ -209,8 +396,8 @@
             }
             if (!midSquare) return;
 
-            const colors = isRed ? ['#e63939', '#ff6b6b', '#ff8787'] : ['#1d3557', '#457b9d', '#5c9ce6'];
-            const emojis = isRed ? ['🔴', '💥', '🔥'] : ['⚫', '💥', '✨'];
+            const colors = isRed ? ['#ff2d55', '#ff6b6b', '#ff8787'] : ['#a5b4fc', '#6366f1', '#818cf8'];
+            const emojis = isRed ? ['🔴', '💥', '🔥'] : ['🔵', '💥', '✨'];
 
             for (let i = 0; i < 9; i++) {
                 const particle = document.createElement('div');
@@ -220,28 +407,29 @@
                 particle.style.left = '50%';
                 particle.style.top = '50%';
                 particle.style.transform = 'translate(-50%, -50%)';
+                particle.style.fontSize = '17px';
 
                 midSquare.appendChild(particle);
 
                 const angle = (i / 9) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
-                const distance = 45 + Math.random() * 35;
+                const distance = 48 + Math.random() * 32;
                 const tx = Math.cos(angle) * distance;
-                const ty = Math.sin(angle) * distance - 15;
+                const ty = Math.sin(angle) * distance - 12;
 
                 setTimeout(() => {
-                    particle.style.transition = 'transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.65s ease-out';
+                    particle.style.transition = 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease-out';
                     particle.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px))`;
                     particle.style.opacity = '0';
                 }, 10);
 
-                setTimeout(() => particle.remove(), 750);
+                setTimeout(() => particle.remove(), 780);
             }
 
-            midSquare.style.transition = 'transform 0.2s ease';
-            midSquare.style.transform = 'scale(1.15)';
+            midSquare.style.transition = 'transform 0.18s ease';
+            midSquare.style.transform = 'scale(1.12)';
             setTimeout(() => {
                 midSquare.style.transform = 'scale(1)';
-            }, 180);
+            }, 160);
         }
 
         function initBoard() {
@@ -275,11 +463,11 @@
                         const piece = board[row][col];
                         let symbol;
                         if (piece.includes('_king')) {
-                            symbol = piece.startsWith('red') ? '👑' : '♚';
+                            symbol = piece.startsWith('red') ? '👑' : '👑';
                         } else if (piece === 'red') {
                             symbol = '🔴';
                         } else if (piece === 'black') {
-                            symbol = '⚫';
+                            symbol = '🔵';
                         }
                         square.innerHTML = symbol;
                         square.classList.add(piece.startsWith('red') ? 'red' : 'black');
@@ -298,7 +486,7 @@
             if (currentPlayer === 'red' && hasMandatoryCapture('red')) {
                 text += " (Capture required!)";
             }
-            document.getElementById('status').textContent = text;
+            document.getElementById('status').innerHTML = text;
         }
 
         function hasMandatoryCapture(player) {
@@ -472,13 +660,13 @@
                         if (piece.startsWith('red') && row === 7) {
                             playSound('win');
                             showGrokTaunt('playerWin');
-                            document.getElementById('status').textContent = "🔴 Red King has returned home! Red wins! 🎉 Click 'New Game' to play again!";
+                            document.getElementById('status').innerHTML = "🔴 Red King has returned home! Red wins! 🎉";
                             return true;
                         }
                         if (piece.startsWith('black') && row === 0) {
                             playSound('win');
                             showGrokTaunt('grokWin');
-                            document.getElementById('status').textContent = "♚ Black King has returned home! Grok wins! 😎 Click 'New Game' to play again!";
+                            document.getElementById('status').innerHTML = "🔵 Black King has returned home! Grok wins! 😎";
                             return true;
                         }
                     }
@@ -502,13 +690,13 @@
             if (redPieces === 0) {
                 playSound('win');
                 showGrokTaunt('grokWin');
-                document.getElementById('status').textContent = "♚ Grok wins! All your pieces were captured! 😎 Click 'New Game' to play again!";
+                document.getElementById('status').innerHTML = "🔵 Grok wins! All your pieces were captured! 😎";
                 return true;
             }
             if (blackPieces === 0) {
                 playSound('win');
                 showGrokTaunt('playerWin');
-                document.getElementById('status').textContent = "🔴 You win! All Grok's pieces were captured! 🎉 Click 'New Game' to play again!";
+                document.getElementById('status').innerHTML = "🔴 You win! All Grok's pieces were captured! 🎉";
                 return true;
             }
             return false;
@@ -533,8 +721,8 @@
                     renderBoard();
                     showGrokTaunt('playerMove');
                     if (currentPlayer === 'black') {
-                        document.getElementById('status').textContent = "Grok is thinking...";
-                        setTimeout(grokMove, 450);
+                        document.getElementById('status').innerHTML = "Grok is thinking...";
+                        setTimeout(grokMove, 420);
                     }
                 } else {
                     selectedPiece = null;
@@ -569,8 +757,7 @@
             const squares = document.querySelectorAll('.square');
             squares.forEach(sq => {
                 if (parseInt(sq.dataset.row) === row && parseInt(sq.dataset.col) === col) {
-                    sq.style.border = '3px solid #ffd700';
-                    sq.style.boxShadow = '0 0 15px #ffd700';
+                    sq.classList.add('selected');
                 }
             });
         }
@@ -579,7 +766,7 @@
             if (gameOver) return;
             const moves = getAllValidMoves('black');
             if (moves.length === 0) {
-                document.getElementById('status').textContent = "Grok has no moves left! You win! Click 'New Game' to play again!";
+                document.getElementById('status').innerHTML = "Grok has no moves left! You win! 🎉";
                 gameOver = true;
                 renderBoard();
                 return;
