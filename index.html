@@ -440,7 +440,7 @@
             customSettings.glowIntensity = glow;
             document.getElementById('glow-value').textContent = glow;
             localStorage.setItem('grokCheckersCustom', JSON.stringify(customSettings));
-            drawBoard();
+            draw();
         }
 
         function applyPreset(preset) {
@@ -463,7 +463,7 @@
         }
 
         function applyCustomSettings() {
-            // No DOM pieces anymore — canvas redraw will use customSettings
+            // Canvas handles this via customSettings
         }
 
         const grokTaunts = {
@@ -563,7 +563,6 @@
                 });
             }
 
-            // Shockwave ring
             particles.push({
                 x: centerX, y: centerY,
                 vx: 0, vy: 0,
@@ -580,7 +579,7 @@
                 const p = particles[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.12; // gravity
+                p.vy += 0.12;
                 p.life--;
                 p.vx *= 0.985;
                 p.vy *= 0.985;
@@ -589,9 +588,7 @@
                     p.size = (p.maxSize * (1 - p.life / 22));
                 }
 
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
-                }
+                if (p.life <= 0) particles.splice(i, 1);
             }
         }
 
@@ -599,11 +596,9 @@
             ctx.save();
             ctx.shadowBlur = 0;
 
-            // Background
             ctx.fillStyle = '#111118';
             ctx.fillRect(0, 0, 480, 480);
 
-            // Subtle grid glow
             ctx.strokeStyle = 'rgba(0, 245, 255, 0.08)';
             ctx.lineWidth = 1;
             for (let i = 0; i <= 8; i++) {
@@ -617,33 +612,28 @@
                 ctx.stroke();
             }
 
-            // Draw squares
             for (let row = 0; row < 8; row++) {
                 for (let col = 0; col < 8; col++) {
                     const x = col * 60;
                     const y = row * 60;
 
                     if ((row + col) % 2 === 0) {
-                        // Light squares
                         ctx.fillStyle = '#2c354d';
                         ctx.fillRect(x, y, 60, 60);
                         ctx.fillStyle = 'rgba(255,255,255,0.04)';
                         ctx.fillRect(x, y, 60, 8);
                     } else {
-                        // Dark squares
                         ctx.fillStyle = '#1a1f2e';
                         ctx.fillRect(x, y, 60, 60);
                         ctx.fillStyle = 'rgba(255,255,255,0.03)';
                         ctx.fillRect(x, y, 60, 6);
                     }
 
-                    // Subtle inner border
                     ctx.strokeStyle = 'rgba(0, 245, 255, 0.07)';
                     ctx.lineWidth = 1.5;
                     ctx.strokeRect(x + 1.5, y + 1.5, 57, 57);
                 }
             }
-
             ctx.restore();
         }
 
@@ -664,24 +654,19 @@
                     const color = isRedPiece ? red : black;
 
                     ctx.save();
-
-                    // Glow
                     ctx.shadowColor = color;
                     ctx.shadowBlur = glow * 0.55;
 
-                    // Piece body
                     ctx.beginPath();
                     ctx.arc(x, y, 23, 0, Math.PI * 2);
                     ctx.fillStyle = color;
                     ctx.fill();
 
-                    // Inner highlight
                     ctx.beginPath();
                     ctx.arc(x - 7, y - 7, 9, 0, Math.PI * 2);
                     ctx.fillStyle = 'rgba(255,255,255,0.35)';
                     ctx.fill();
 
-                    // Outer ring
                     ctx.beginPath();
                     ctx.arc(x, y, 26, 0, Math.PI * 2);
                     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
@@ -697,7 +682,6 @@
                         ctx.textBaseline = 'middle';
                         ctx.fillText('👑', x, y + 1);
                     }
-
                     ctx.restore();
                 }
             }
@@ -705,20 +689,17 @@
 
         function drawHighlight() {
             if (!selectedPiece) return;
-
             const x = selectedPiece.col * 60 + 30;
             const y = selectedPiece.row * 60 + 30;
 
             ctx.save();
             ctx.shadowColor = '#00f5ff';
             ctx.shadowBlur = 22;
-
             ctx.beginPath();
             ctx.arc(x, y, 29, 0, Math.PI * 2);
             ctx.strokeStyle = '#00f5ff';
             ctx.lineWidth = 4;
             ctx.stroke();
-
             ctx.restore();
         }
 
@@ -814,21 +795,306 @@
             }
         }
 
-        // All gameplay functions (hasMandatoryCapture, getAllValidMoves, isValidMove, movePiece, etc.) remain exactly the same as before
+        function hasMandatoryCapture(player) {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (!piece || !piece.startsWith(player)) continue;
+                    const isKing = piece.includes('_king');
+                    const dirs = isKing ? [[-2,-2], [-2,2], [2,-2], [2,2]] : (player === 'red' ? [[-2,-2], [-2,2]] : [[2,-2], [2,2]]);
+                    for (let [dr, dc] of dirs) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
 
-        function hasMandatoryCapture(player) { /* ... same ... */ return false; }
-        function getAllValidMoves(player) { /* ... same ... */ return []; }
-        function isValidMove(fromRow, fromCol, toRow, toCol) { /* ... same ... */ return false; }
-        function movePiece(fromRow, fromCol, toRow, toCol) { /* ... same ... */ return false; }
-        function checkForKingWin() { /* ... same ... */ return false; }
-        function checkForPieceWin() { /* ... same ... */ return false; }
-        function grokMove() { /* ... same ... */ }
-        function resetGame() { /* ... same ... */ }
+        function getAllValidMoves(player) {
+            const moves = [];
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (!piece || !piece.startsWith(player)) continue;
+                    const isKing = piece.includes('_king');
+                    const dirs = isKing ? [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]] : (player === 'red' ? [[-2,-2], [-2,2], [-1,-1], [-1,1]] : [[2,-2], [2,2], [1,-1], [1,1]]);
+                    for (let [dr, dc] of dirs) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                            moves.push({fromRow: row, fromCol: col, toRow: nr, toCol: nc});
+                        }
+                    }
+                }
+            }
+            return moves;
+        }
 
-        function updateStatus() {
-            let text = currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1) + "'s turn";
-            if (currentPlayer === 'red' && hasMandatoryCapture('red')) text += " (Capture required!)";
-            document.getElementById('status').innerHTML = text;
+        function copyBoard() {
+            return board.map(row => row.slice());
+        }
+
+        function evaluateBoard() {
+            let score = 0;
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const p = board[r][c];
+                    if (!p) continue;
+                    const isBlack = p.startsWith('black');
+                    const val = p.includes('_king') ? 4.5 : 1;
+                    score += isBlack ? val : -val;
+                    if (currentDifficulty === 'hard' && p.includes('_king')) {
+                        score += isBlack ? (7 - r) * 0.35 : r * 0.35;
+                    } else if (p.includes('_king')) {
+                        score += isBlack ? (7 - r) * 0.25 : r * 0.25;
+                    } else {
+                        score += isBlack ? r * 0.12 : (7 - r) * 0.12;
+                    }
+                }
+            }
+            return score;
+        }
+
+        function minimax(depth, alpha, beta, maximizing) {
+            if (depth === 0) return evaluateBoard();
+            const player = maximizing ? 'black' : 'red';
+            let moves = getAllValidMoves(player);
+            if (moves.length === 0) return maximizing ? -9999 : 9999;
+
+            if (maximizing) {
+                let maxEval = -Infinity;
+                for (let m of moves) {
+                    const saved = copyBoard();
+                    movePiece(m.fromRow, m.fromCol, m.toRow, m.toCol);
+                    const evalScore = minimax(depth - 1, alpha, beta, false);
+                    board = saved;
+                    maxEval = Math.max(maxEval, evalScore);
+                    alpha = Math.max(alpha, maxEval);
+                    if (beta <= alpha) break;
+                }
+                return maxEval;
+            } else {
+                let minEval = Infinity;
+                for (let m of moves) {
+                    const saved = copyBoard();
+                    movePiece(m.fromRow, m.fromCol, m.toRow, m.toCol);
+                    const evalScore = minimax(depth - 1, alpha, beta, true);
+                    board = saved;
+                    minEval = Math.min(minEval, evalScore);
+                    beta = Math.min(beta, minEval);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
+            }
+        }
+
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
+            const piece = board[fromRow][fromCol];
+            if (!piece || board[toRow][toCol] !== null) return false;
+
+            const rowDiff = Math.abs(fromRow - toRow);
+            const colDiff = Math.abs(fromCol - toCol);
+
+            if (rowDiff !== colDiff || (rowDiff !== 1 && rowDiff !== 2)) return false;
+
+            const isKing = piece.includes('_king');
+            const player = piece.startsWith('red') ? 'red' : 'black';
+            const opponent = player === 'red' ? 'black' : 'red';
+
+            if (rowDiff === 1) {
+                if (hasMandatoryCapture(player)) return false;
+                if (isKing) return true;
+                const dir = player === 'red' ? -1 : 1;
+                return toRow === fromRow + dir;
+            }
+
+            if (rowDiff === 2) {
+                const midRow = (fromRow + toRow) / 2;
+                const midCol = (fromCol + toCol) / 2;
+                const midPiece = board[midRow][midCol];
+                if (!midPiece || !midPiece.startsWith(opponent)) return false;
+                if (!isKing) {
+                    const dir = player === 'red' ? -1 : 1;
+                    return toRow === fromRow + 2 * dir;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function movePiece(fromRow, fromCol, toRow, toCol) {
+            let piece = board[fromRow][fromCol];
+            board[fromRow][fromCol] = null;
+
+            const rowDiff = Math.abs(fromRow - toRow);
+            let captured = false;
+            if (rowDiff === 2) {
+                const midRow = (fromRow + toRow) / 2;
+                const midCol = (fromCol + toCol) / 2;
+                const isRedCapture = board[midRow][midCol] && board[midRow][midCol].startsWith('red');
+                board[midRow][midCol] = null;
+                captured = true;
+                playSound('capture');
+                createCaptureExplosion(midRow, midCol, isRedCapture);
+                showGrokTaunt('capture');
+            } else {
+                playSound('move');
+            }
+
+            if (!piece.includes('_king')) {
+                if ((piece === 'red' && toRow === 0) || (piece === 'black' && toRow === 7)) {
+                    piece = piece + '_king';
+                    playSound('promote');
+                    showGrokTaunt('promote');
+                }
+            }
+            board[toRow][toCol] = piece;
+            return captured;
+        }
+
+        function checkForKingWin() {
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece && piece.includes('_king')) {
+                        if (piece.startsWith('red') && row === 7) {
+                            playSound('win');
+                            showGrokTaunt('playerWin');
+                            if (currentDifficulty === 'hard') triggerHardWinCelebration();
+                            document.getElementById('status').innerHTML = "🔴 Red King has returned home! Red wins! 🎉";
+                            return true;
+                        }
+                        if (piece.startsWith('black') && row === 0) {
+                            playSound('win');
+                            showGrokTaunt('grokWin');
+                            document.getElementById('status').innerHTML = "🔵 Black King has returned home! Grok wins! 😎";
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function checkForPieceWin() {
+            let redPieces = 0;
+            let blackPieces = 0;
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        if (piece.startsWith('red')) redPieces++;
+                        else blackPieces++;
+                    }
+                }
+            }
+            if (redPieces === 0) {
+                playSound('win');
+                showGrokTaunt('grokWin');
+                stats.losses++;
+                stats.currentStreak = 0;
+                saveStats();
+                document.getElementById('status').innerHTML = "🔵 Grok wins! All your pieces were captured! 😎";
+                return true;
+            }
+            if (blackPieces === 0) {
+                playSound('win');
+                showGrokTaunt('playerWin');
+                if (currentDifficulty === 'hard') triggerHardWinCelebration();
+                stats.wins++;
+                stats.currentStreak++;
+                if (stats.currentStreak > stats.bestStreak) stats.bestStreak = stats.currentStreak;
+                saveStats();
+                document.getElementById('status').innerHTML = "🔴 You win! All Grok's pieces were captured! 🎉";
+                return true;
+            }
+            return false;
+        }
+
+        function triggerHardWinCelebration() {
+            const boardEl = document.getElementById('board');
+            for (let i = 0; i < 18; i++) {
+                setTimeout(() => {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.textContent = ['👑', '🔥', '✨', '💎'][Math.floor(Math.random() * 4)];
+                    particle.style.color = '#ffd700';
+                    particle.style.fontSize = '20px';
+                    particle.style.left = Math.random() * 480 + 'px';
+                    particle.style.top = Math.random() * 480 + 'px';
+                    particle.style.position = 'absolute';
+                    particle.style.zIndex = '30';
+                    boardEl.appendChild(particle);
+
+                    const tx = (Math.random() - 0.5) * 180;
+                    const ty = (Math.random() - 0.5) * 180 - 60;
+
+                    setTimeout(() => {
+                        particle.style.transition = 'transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.1s ease-out';
+                        particle.style.transform = `translate(${tx}px, ${ty}px)`;
+                        particle.style.opacity = '0';
+                    }, 10);
+
+                    setTimeout(() => particle.remove(), 1400);
+                }, i * 18);
+            }
+
+            setTimeout(() => {
+                const tauntBox = document.getElementById('grok-taunt');
+                tauntBox.innerHTML = "Okay… you actually beat me on Hard. Respect. 🫡";
+                tauntBox.style.color = '#ffd700';
+                setTimeout(() => { tauntBox.style.color = '#c4c9e0'; }, 2800);
+            }, 800);
+        }
+
+        function grokMove() {
+            if (gameOver) return;
+            const moves = getAllValidMoves('black');
+            if (moves.length === 0) {
+                document.getElementById('status').innerHTML = "Grok has no moves left! You win! 🎉";
+                gameOver = true;
+                draw();
+                return;
+            }
+
+            let bestMove = null;
+            let bestScore = -Infinity;
+            let depth = (currentDifficulty === 'easy') ? 2 : (currentDifficulty === 'hard') ? 5 : 3;
+
+            for (let m of moves) {
+                const saved = copyBoard();
+                movePiece(m.fromRow, m.fromCol, m.toRow, m.toCol);
+                const score = minimax(depth, -Infinity, Infinity, false);
+                board = saved;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = m;
+                }
+            }
+
+            if (bestMove) {
+                movePiece(bestMove.fromRow, bestMove.fromCol, bestMove.toRow, bestMove.toCol);
+                if (checkForKingWin() || checkForPieceWin()) {
+                    gameOver = true;
+                    draw();
+                    return;
+                }
+                currentPlayer = 'red';
+                updateStatus();
+                draw();
+                showGrokTaunt('grokMove');
+            }
+        }
+
+        function resetGame() {
+            initBoard();
+            currentPlayer = 'red';
+            updateStatus();
+            gameOver = false;
         }
 
         function initBoard() {
@@ -854,17 +1120,10 @@
         function init() {
             canvas.addEventListener('click', handleCanvasClick);
 
-            // Touch support
             canvas.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
-                const clickX = touch.clientX - rect.left;
-                const clickY = touch.clientY - rect.top;
-                const col = Math.floor(clickX / 60);
-                const row = Math.floor(clickY / 60);
-
-                // Simulate click
                 const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
                 handleCanvasClick(fakeEvent);
             });
@@ -874,7 +1133,6 @@
             applyCustomSettings();
             gameLoop();
 
-            // Initial draw
             setTimeout(() => draw(), 50);
         }
 
