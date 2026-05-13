@@ -360,52 +360,65 @@
                 "Interesting choice. Bold. Reckless. I like it.",
                 "Hmm. You're actually trying. Cute.",
                 "That move has... potential. Very little, but still.",
-                "I saw that coming three moves ago."
+                "I saw that coming three moves ago.",
+                "Bold. I respect the chaos.",
+                "You're learning. Slowly, but learning.",
+                "That was... a choice."
             ],
             grokMove: [
                 "Too easy.",
                 "Checkmate? Wait, wrong game. Still got you though.",
                 "Did that hurt? Good.",
                 "I'm just getting warmed up.",
-                "Your move... if you dare."
+                "Your move... if you dare.",
+                "Precision. That's what separates us.",
+                "I see the board three moves ahead. You?"
             ],
             capture: [
                 "Oops. Did I just take that? My bad.",
                 "Delicious. Another one for the collection.",
                 "That's gotta sting a little.",
                 "King? More like... former piece.",
-                "I eat pieces for breakfast."
+                "I eat pieces for breakfast.",
+                "Another one bites the dust.",
+                "Poetic."
             ],
             playerCapture: [
                 "Oh? Someone's feeling brave today.",
                 "Nice capture. Almost made me blink.",
                 "Alright, alright... respect.",
                 "You got lucky. Don't get used to it.",
-                "Finally! I was getting bored."
+                "Finally! I was getting bored.",
+                "Okay that was actually clean.",
+                "You're starting to annoy me... in a good way."
             ],
             promote: [
                 "King me? How original 😏",
                 "Crown looks good on you. Shame it won't last.",
                 "A king? Now things are getting interesting.",
-                "Royalty suits you. Temporarily."
+                "Royalty suits you. Temporarily.",
+                "The crown suits you. Don't get attached."
             ],
             grokWin: [
                 "GG. Better luck next time, human.",
                 "That was fun. For me.",
                 "I told you I was inevitable.",
-                "Thanks for playing. Come back when you're ready."
+                "Thanks for playing. Come back when you're ready.",
+                "Another victory for the silicon overlords."
             ],
             playerWin: [
                 "Wait... you actually won?",
                 "Okay, that was impressive. Don't let it go to your head.",
                 "Alright human, you earned that one.",
-                "Well played. I'm... slightly less disappointed in you now."
+                "Well played. I'm... slightly less disappointed in you now.",
+                "I let you have that one. Obviously."
             ],
             random: [
                 "My circuits are tingling.",
                 "This is more fun than I expected.",
                 "You're not half bad... for a meat-based lifeform.",
-                "I wonder what xAI thinks of this game."
+                "I wonder what xAI thinks of this game.",
+                "Do you ever wonder if I'm actually thinking or just pretending?"
             ]
         };
 
@@ -634,7 +647,6 @@
                     const val = p.includes('_king') ? 4.5 : 1;
                     score += isBlack ? val : -val;
 
-                    // Extra positional bonus on Hard mode
                     if (currentDifficulty === 'hard' && p.includes('_king')) {
                         score += isBlack ? (7 - r) * 0.35 : r * 0.35;
                     } else if (p.includes('_king')) {
@@ -808,7 +820,6 @@
         }
 
         function triggerHardWinCelebration() {
-            // Extra particle burst for beating Hard mode
             const boardEl = document.getElementById('board');
             for (let i = 0; i < 18; i++) {
                 setTimeout(() => {
@@ -836,7 +847,6 @@
                 }, i * 18);
             }
 
-            // Special taunt
             setTimeout(() => {
                 const tauntBox = document.getElementById('grok-taunt');
                 tauntBox.innerHTML = "Okay… you actually beat me on Hard. Respect. 🫡";
@@ -920,7 +930,6 @@
             let bestMove = null;
             let bestScore = -Infinity;
 
-            // Adjust depth based on difficulty
             let depth = 3;
             if (currentDifficulty === 'easy') depth = 2;
             if (currentDifficulty === 'hard') depth = 5;
@@ -957,10 +966,8 @@
             gameOver = false;
         }
 
-        // Initialize stats UI
         function initStats() {
             updateStatsUI();
-            // Set initial active difficulty button
             document.querySelectorAll('.diff-btn')[1].classList.add('active');
         }
 
