@@ -835,10 +835,25 @@
             console.log('%c[Checkers] Clicked grid: row=' + row + ', col=' + col + ' | selected=' + (selectedPiece ? selectedPiece.row + ',' + selectedPiece.col : 'none') + ' | validMove=' + (selectedPiece ? isValidMove(selectedPiece.row, selectedPiece.col, row, col) : 'N/A'), 'color:#a5b4fc');
 
             if (selectedPiece) {
-                const isValidClick = validDestinations.some(d => d.row === row && d.col === col);
-                if (isValidClick) {
+                // Find closest valid destination (forgiving click)
+                let closest = null;
+                let minDist = Infinity;
+                const clickCenterX = col * 60 + 30;
+                const clickCenterY = row * 60 + 30;
+
+                for (let dest of validDestinations) {
+                    const dx = (dest.col * 60 + 30) - clickCenterX;
+                    const dy = (dest.row * 60 + 30) - clickCenterY;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = dest;
+                    }
+                }
+
+                if (closest && minDist < 45) {  // within ~45px of a valid spot
                     playSound('select');
-                    movePiece(selectedPiece.row, selectedPiece.col, row, col);
+                    movePiece(selectedPiece.row, selectedPiece.col, closest.row, closest.col);
                     selectedPiece = null;
                     validDestinations = [];
                     if (checkForKingWin() || checkForPieceWin()) {
