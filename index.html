@@ -119,8 +119,10 @@
         }
 
         #game-canvas {
-            width: 480px;
-            height: 480px;
+            width: 100%;
+            max-width: 480px;
+            height: auto;
+            aspect-ratio: 1 / 1;
             border-radius: 20px;
             box-shadow: 
                 0 0 0 1px rgba(0, 245, 255, 0.15),
@@ -471,7 +473,50 @@
             // Canvas handles this via customSettings
         }
 
-        const grokTaunts = { /* ... same as before ... */ };
+        const grokTaunts = {
+            random: [
+                "Nice move! But I've got something better planned...",
+                "You're playing with fire, human. I like it.",
+                "Interesting choice. Let's see how this plays out.",
+                "Bold. Very bold."
+            ],
+            playerMove: [
+                "Ooh, aggressive! I respect that.",
+                "Not bad... for a human.",
+                "You're making this interesting.",
+                "Keep going, I'm just warming up."
+            ],
+            capture: [
+                "Boom! Captured. That had to sting.",
+                "Got 'em! My turn to return the favor.",
+                "Excellent capture. Now watch this.",
+                "Sacrifice accepted. Or was it?"
+            ],
+            promote: [
+                "King me! 👑 The crown suits you.",
+                "A king is born! Or... crowned.",
+                "Royalty achieved. Bow before the new monarch!",
+                "Kinged! The board just got more dangerous."
+            ],
+            playerWin: [
+                "You won?! Impossible. I demand a rematch!",
+                "Well played, human. You earned this one.",
+                "Victory is yours. Grok bows... this time.",
+                "Impressive. The student becomes the master?"
+            ],
+            grokWin: [
+                "As expected. Better luck next time, champion.",
+                "Grok takes the crown! 🤖👑",
+                "Another win for the machines. Resistance is futile.",
+                "Checkmate... or should I say, checker-mate?"
+            ],
+            grokMove: [
+                "My move. Let's make this count.",
+                "Thinking... done. Your turn, human.",
+                "Strategic. Now try to beat that.",
+                "The AI strikes back!"
+            ]
+        };
 
         function showGrokTaunt(category) {
             const tauntBox = document.getElementById('grok-taunt');
@@ -698,6 +743,33 @@
             ctx.lineWidth = 4;
             ctx.stroke();
             ctx.restore();
+
+            // Highlight valid move destinations for easier play!
+            const piece = board[selectedPiece.row][selectedPiece.col];
+            if (!piece) return;
+            const isKing = piece.includes('_king');
+            const player = piece.startsWith('red') ? 'red' : 'black';
+            const dirs = isKing 
+                ? [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]] 
+                : (player === 'red' ? [[-2,-2], [-2,2], [-1,-1], [-1,1]] : [[2,-2], [2,2], [1,-1], [1,1]]);
+
+            ctx.save();
+            ctx.strokeStyle = '#22ff88';
+            ctx.fillStyle = 'rgba(34, 255, 136, 0.25)';
+            ctx.lineWidth = 3;
+            for (let [dr, dc] of dirs) {
+                const nr = selectedPiece.row + dr;
+                const nc = selectedPiece.col + dc;
+                if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(selectedPiece.row, selectedPiece.col, nr, nc)) {
+                    const mx = nc * 60 + 30;
+                    const my = nr * 60 + 30;
+                    ctx.beginPath();
+                    ctx.arc(mx, my, 16, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
         }
 
         function drawParticles() {
@@ -746,8 +818,9 @@
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
 
-            const col = Math.floor(clickX / 60);
-            const row = Math.floor(clickY / 60);
+            const squareSize = rect.width / 8;
+            const col = Math.floor(clickX / squareSize);
+            const row = Math.floor(clickY / squareSize);
 
             console.log('%c[Checkers] Grid position: ' + row + ',' + col, 'color:#a5b4fc');
 
