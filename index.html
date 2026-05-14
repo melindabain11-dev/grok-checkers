@@ -755,18 +755,23 @@
 
             ctx.save();
             ctx.strokeStyle = '#22ff88';
-            ctx.fillStyle = 'rgba(34, 255, 136, 0.25)';
-            ctx.lineWidth = 3;
+            ctx.fillStyle = 'rgba(34, 255, 136, 0.38)';
+            ctx.lineWidth = 5;
             for (let [dr, dc] of dirs) {
                 const nr = selectedPiece.row + dr;
                 const nc = selectedPiece.col + dc;
                 if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(selectedPiece.row, selectedPiece.col, nr, nc)) {
+                    // Big obvious green square highlight so it's impossible to miss
+                    ctx.fillRect(nc * 60 + 3, nr * 60 + 3, 54, 54);
+                    ctx.strokeRect(nc * 60 + 5, nr * 60 + 5, 50, 50);
+                    
+                    // Also keep a bright center dot
                     const mx = nc * 60 + 30;
                     const my = nr * 60 + 30;
                     ctx.beginPath();
-                    ctx.arc(mx, my, 16, 0, Math.PI * 2);
+                    ctx.arc(mx, my, 12, 0, Math.PI * 2);
+                    ctx.fillStyle = '#22ff88';
                     ctx.fill();
-                    ctx.stroke();
                 }
             }
             ctx.restore();
@@ -826,7 +831,7 @@
             const col = Math.max(0, Math.min(7, Math.floor(canvasX / 60)));
             const row = Math.max(0, Math.min(7, Math.floor(canvasY / 60)));
 
-            console.log('%c[Checkers] Grid position: ' + row + ',' + col, 'color:#a5b4fc');
+            console.log('%c[Checkers] Clicked grid: row=' + row + ', col=' + col + ' | selected=' + (selectedPiece ? selectedPiece.row + ',' + selectedPiece.col : 'none') + ' | validMove=' + (selectedPiece ? isValidMove(selectedPiece.row, selectedPiece.col, row, col) : 'N/A'), 'color:#a5b4fc');
 
             if (selectedPiece) {
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
