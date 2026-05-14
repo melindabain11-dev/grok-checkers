@@ -392,6 +392,7 @@
         let board = Array(8).fill().map(() => Array(8).fill(null));
         let currentPlayer = 'red';
         let selectedPiece = null;
+        let validDestinations = [];
         let gameOver = false;
         let audioCtx;
         let currentDifficulty = 'medium';
@@ -834,10 +835,12 @@
             console.log('%c[Checkers] Clicked grid: row=' + row + ', col=' + col + ' | selected=' + (selectedPiece ? selectedPiece.row + ',' + selectedPiece.col : 'none') + ' | validMove=' + (selectedPiece ? isValidMove(selectedPiece.row, selectedPiece.col, row, col) : 'N/A'), 'color:#a5b4fc');
 
             if (selectedPiece) {
-                if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
+                const isValidClick = validDestinations.some(d => d.row === row && d.col === col);
+                if (isValidClick) {
                     playSound('select');
                     movePiece(selectedPiece.row, selectedPiece.col, row, col);
                     selectedPiece = null;
+                    validDestinations = [];
                     if (checkForKingWin() || checkForPieceWin()) {
                         gameOver = true;
                         draw();
@@ -853,6 +856,7 @@
                     }
                 } else {
                     selectedPiece = null;
+                    validDestinations = [];
                     draw();
                 }
             } else if (board[row] && board[row][col] && board[row][col].startsWith(currentPlayer)) {
@@ -876,8 +880,25 @@
                 }
                 playSound('select');
                 selectedPiece = {row, col};
+                
+                // Pre-compute valid destinations so click is 100% reliable
+                validDestinations = [];
+                const piece = board[row][col];
+                const isKing = piece.includes('_king');
+                const player = piece.startsWith('red') ? 'red' : 'black';
+                const dirs = isKing 
+                    ? [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]] 
+                    : (player === 'red' ? [[-2,-2], [-2,2], [-1,-1], [-1,1]] : [[2,-2], [2,2], [1,-1], [1,1]]);
+                for (let [dr, dc] of dirs) {
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && isValidMove(row, col, nr, nc)) {
+                        validDestinations.push({row: nr, col: nc});
+                    }
+                }
+                
                 draw();
-                console.log('%c[Checkers] Piece selected at ' + row + ',' + col, 'color:#00f5ff');
+                console.log('%c[Checkers] Piece selected at ' + row + ',' + col + ' — valid spots: ' + validDestinations.length, 'color:#00f5ff');
             } else {
                 console.log('%c[Checkers] No valid piece at ' + row + ',' + col + ' for ' + currentPlayer, 'color:#ff6b6b');
             }
@@ -1172,6 +1193,7 @@
             }
             gameOver = false;
             selectedPiece = null;
+            validDestinations = [];
             particles = [];
             updateStatus();
             document.getElementById('grok-taunt').innerHTML = "Ready when you are, human. Let's see what you've got.";
