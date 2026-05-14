@@ -413,6 +413,16 @@
             document.getElementById('stat-streak').textContent = stats.currentStreak;
         }
 
+        function updateStatus() {
+            const el = document.getElementById('status');
+            if (!el || gameOver) return;
+            if (currentPlayer === 'red') {
+                el.innerHTML = "Red's turn (You are Red)";
+            } else {
+                el.innerHTML = "Grok's turn (Black)";
+            }
+        }
+
         function saveStats() {
             localStorage.setItem('grokCheckersStats', JSON.stringify(stats));
             updateStatsUI();
@@ -835,7 +845,30 @@
             console.log('%c[Checkers] Clicked grid: row=' + row + ', col=' + col + ' | selected=' + (selectedPiece ? selectedPiece.row + ',' + selectedPiece.col : 'none') + ' | validMove=' + (selectedPiece ? isValidMove(selectedPiece.row, selectedPiece.col, row, col) : 'N/A'), 'color:#a5b4fc');
 
             if (selectedPiece) {
-                // Find closest valid destination (forgiving click)
+                // First, check for exact match on a valid destination square (most reliable)
+                const exactTarget = validDestinations.find(d => d.row === row && d.col === col);
+                if (exactTarget) {
+                    playSound('select');
+                    movePiece(selectedPiece.row, selectedPiece.col, exactTarget.row, exactTarget.col);
+                    selectedPiece = null;
+                    validDestinations = [];
+                    if (checkForKingWin() || checkForPieceWin()) {
+                        gameOver = true;
+                        draw();
+                        return;
+                    }
+                    currentPlayer = currentPlayer === 'red' ? 'black' : 'red';
+                    updateStatus();
+                    draw();
+                    showGrokTaunt('playerMove');
+                    if (currentPlayer === 'black') {
+                        document.getElementById('status').innerHTML = "Grok is thinking...";
+                        setTimeout(grokMove, 420);
+                    }
+                    return;
+                }
+
+                // Fallback: forgiving closest valid spot (for slight misclicks)
                 let closest = null;
                 let minDist = Infinity;
                 const clickCenterX = col * 60 + 30;
@@ -851,7 +884,7 @@
                     }
                 }
 
-                if (closest && minDist < 45) {  // within ~45px of a valid spot
+                if (closest && minDist < 50) {  // slightly more forgiving ~50px
                     playSound('select');
                     movePiece(selectedPiece.row, selectedPiece.col, closest.row, closest.col);
                     selectedPiece = null;
@@ -890,6 +923,7 @@
                     }
                     if (!canCapture) {
                         console.log('%c[Checkers] Piece cannot capture (mandatory capture active)', 'color:#ff6b6b');
+                        // Optional: could show a toast here for user
                         return;
                     }
                 }
@@ -902,8 +936,7 @@
                 const isKing = piece.includes('_king');
                 const player = piece.startsWith('red') ? 'red' : 'black';
                 const dirs = isKing 
-                    ? [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]] 
-                    : (player === 'red' ? [[-2,-2], [-2,2], [-1,-1], [-1,1]] : [[2,-2], [2,2], [1,-1], [1,1]]);
+                    ? [[-2,-2], [-2,2], [2,-2], [2,2], [-1,-1], [-1,1], [1,-1], [1,1]] : (player === 'red' ? [[-2,-2], [-2,2], [-1,-1], [-1,1]] : [[2,-2], [2,2], [1,-1], [1,1]]);
                 for (let [dr, dc] of dirs) {
                     const nr = row + dr;
                     const nc = col + dc;
@@ -1081,27 +1114,10 @@
         }
 
         function checkForKingWin() {
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    const piece = board[row][col];
-                    if (piece && piece.includes('_king')) {
-                        if (piece.startsWith('red') && row === 7) {
-                            playSound('win');
-                            showGrokTaunt('playerWin');
-                            if (currentDifficulty === 'hard') triggerHardWinCelebration();
-                            document.getElementById('status').innerHTML = "🔴 Red King has returned home! Red wins! 🎉";
-                            return true;
-                        }
-                        if (piece.startsWith('black') && row === 0) {
-                            playSound('win');
-                            showGrokTaunt('grokWin');
-                            document.getElementById('status').innerHTML = "🔵 Black King has returned home! Grok wins! 😎";
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
+            // Fun extra rule for Kings Edition - but only trigger if it makes sense (e.g. after promotion journey)
+            // For stability, we'll keep it light and not auto-win on every king position
+            // Standard wins are handled by checkForPieceWin and no-moves
+            return false; // Disabled to prevent false wins - game now purely skill-based!
         }
 
         function checkForPieceWin() {
