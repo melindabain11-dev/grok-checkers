@@ -127,6 +127,7 @@
                 0 25px 70px rgba(0, 0, 0, 0.7);
             cursor: pointer;
             touch-action: none;
+            background: #111118;
         }
 
         button {
@@ -317,9 +318,9 @@
         <div class="subtitle">KINGS EDITION • 2026</div>
 
         <div class="difficulty-selector">
-            <button class="diff-btn" onclick="setDifficulty('easy')">Easy</button>
-            <button class="diff-btn active" onclick="setDifficulty('medium')">Medium</button>
-            <button class="diff-btn" onclick="setDifficulty('hard')">Hard</button>
+            <button class="diff-btn" onclick="setDifficulty('easy', this)">Easy</button>
+            <button class="diff-btn active" onclick="setDifficulty('medium', this)">Medium</button>
+            <button class="diff-btn" onclick="setDifficulty('hard', this)">Hard</button>
         </div>
 
         <div id="status">Red's turn (You are Red)</div>
@@ -412,10 +413,10 @@
             updateStatsUI();
         }
 
-        function setDifficulty(level) {
+        function setDifficulty(level, btn) {
             currentDifficulty = level;
-            document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
         function toggleCustomizePanel() {
@@ -1016,33 +1017,8 @@
         }
 
         function triggerHardWinCelebration() {
-            const boardEl = document.getElementById('board');
-            for (let i = 0; i < 18; i++) {
-                setTimeout(() => {
-                    const particle = document.createElement('div');
-                    particle.className = 'particle';
-                    particle.textContent = ['👑', '🔥', '✨', '💎'][Math.floor(Math.random() * 4)];
-                    particle.style.color = '#ffd700';
-                    particle.style.fontSize = '20px';
-                    particle.style.left = Math.random() * 480 + 'px';
-                    particle.style.top = Math.random() * 480 + 'px';
-                    particle.style.position = 'absolute';
-                    particle.style.zIndex = '30';
-                    boardEl.appendChild(particle);
-
-                    const tx = (Math.random() - 0.5) * 180;
-                    const ty = (Math.random() - 0.5) * 180 - 60;
-
-                    setTimeout(() => {
-                        particle.style.transition = 'transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.1s ease-out';
-                        particle.style.transform = `translate(${tx}px, ${ty}px)`;
-                        particle.style.opacity = '0';
-                    }, 10);
-
-                    setTimeout(() => particle.remove(), 1400);
-                }, i * 18);
-            }
-
+            // Celebration particles on canvas via createCaptureExplosion already handled in wins
+            // Simplified - no DOM manipulation needed
             setTimeout(() => {
                 const tauntBox = document.getElementById('grok-taunt');
                 tauntBox.innerHTML = "Okay… you actually beat me on Hard. Respect. 🫡";
