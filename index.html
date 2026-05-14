@@ -818,9 +818,13 @@
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
 
-            const squareSize = rect.width / 8;
-            const col = Math.floor(clickX / squareSize);
-            const row = Math.floor(clickY / squareSize);
+            // Map click to internal canvas coordinates (480x480) to stay consistent with drawing
+            const scale = rect.width / 480;
+            const canvasX = clickX / scale;
+            const canvasY = clickY / scale;
+
+            const col = Math.max(0, Math.min(7, Math.floor(canvasX / 60)));
+            const row = Math.max(0, Math.min(7, Math.floor(canvasY / 60)));
 
             console.log('%c[Checkers] Grid position: ' + row + ',' + col, 'color:#a5b4fc');
 
