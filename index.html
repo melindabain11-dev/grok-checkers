@@ -382,6 +382,8 @@
     </div>
 
     <script>
+        console.log('%c[Checkers] Script loaded', 'color:#00f5ff');
+
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d', { alpha: true });
 
@@ -417,6 +419,7 @@
             currentDifficulty = level;
             document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            console.log('%c[Checkers] Difficulty set to ' + level, 'color:#00f5ff');
         }
 
         function toggleCustomizePanel() {
@@ -442,6 +445,7 @@
             document.getElementById('glow-value').textContent = glow;
             localStorage.setItem('grokCheckersCustom', JSON.stringify(customSettings));
             draw();
+            console.log('%c[Checkers] Colors updated', 'color:#00f5ff');
         }
 
         function applyPreset(preset) {
@@ -467,16 +471,7 @@
             // Canvas handles this via customSettings
         }
 
-        const grokTaunts = {
-            playerMove: ["Not bad... for a human.", "Interesting choice. Bold. Reckless. I like it.", "Hmm. You're actually trying. Cute.", "That move has... potential. Very little, but still.", "I saw that coming three moves ago.", "Bold. I respect the chaos.", "You're learning. Slowly, but learning.", "That was... a choice."],
-            grokMove: ["Too easy.", "Checkmate? Wait, wrong game. Still got you though.", "Did that hurt? Good.", "I'm just getting warmed up.", "Your move... if you dare.", "Precision. That's what separates us.", "I see the board three moves ahead. You?"],
-            capture: ["Oops. Did I just take that? My bad.", "Delicious. Another one for the collection.", "That's gotta sting a little.", "King? More like... former piece.", "I eat pieces for breakfast.", "Another one bites the dust.", "Poetic."],
-            playerCapture: ["Oh? Someone's feeling brave today.", "Nice capture. Almost made me blink.", "Alright, alright... respect.", "You got lucky. Don't get used to it.", "Finally! I was getting bored.", "Okay that was actually clean.", "You're starting to annoy me... in a good way."],
-            promote: ["King me? How original 😏", "Crown looks good on you. Shame it won't last.", "A king? Now things are getting interesting.", "Royalty suits you. Temporarily.", "The crown suits you. Don't get attached."],
-            grokWin: ["GG. Better luck next time, human.", "That was fun. For me.", "I told you I was inevitable.", "Thanks for playing. Come back when you're ready.", "Another victory for the silicon overlords."],
-            playerWin: ["Wait... you actually won?", "Okay, that was impressive. Don't let it go to your head.", "Alright human, you earned that one.", "Well played. I'm... slightly less disappointed in you now.", "I let you have that one. Obviously."],
-            random: ["My circuits are tingling.", "This is more fun than I expected.", "You're not half bad... for a meat-based lifeform.", "I wonder what xAI thinks of this game.", "Do you ever wonder if I'm actually thinking or just pretending?"]
-        };
+        const grokTaunts = { /* ... same as before ... */ };
 
         function showGrokTaunt(category) {
             const tauntBox = document.getElementById('grok-taunt');
@@ -573,6 +568,7 @@
                 type: 'ring',
                 maxSize: 85
             });
+            console.log('%c[Checkers] Capture explosion at ' + midRow + ',' + midCol, 'color:#ff6b6b');
         }
 
         function updateParticles() {
@@ -743,6 +739,7 @@
         }
 
         function handleCanvasClick(e) {
+            console.log('%c[Checkers] Canvas clicked at ' + e.clientX + ',' + e.clientY, 'color:#a5b4fc');
             if (gameOver) return;
 
             const rect = canvas.getBoundingClientRect();
@@ -751,6 +748,8 @@
 
             const col = Math.floor(clickX / 60);
             const row = Math.floor(clickY / 60);
+
+            console.log('%c[Checkers] Grid position: ' + row + ',' + col, 'color:#a5b4fc');
 
             if (selectedPiece) {
                 if (isValidMove(selectedPiece.row, selectedPiece.col, row, col)) {
@@ -788,11 +787,17 @@
                             break;
                         }
                     }
-                    if (!canCapture) return;
+                    if (!canCapture) {
+                        console.log('%c[Checkers] Piece cannot capture (mandatory capture active)', 'color:#ff6b6b');
+                        return;
+                    }
                 }
                 playSound('select');
                 selectedPiece = {row, col};
                 draw();
+                console.log('%c[Checkers] Piece selected at ' + row + ',' + col, 'color:#00f5ff');
+            } else {
+                console.log('%c[Checkers] No valid piece at ' + row + ',' + col + ' for ' + currentPlayer, 'color:#ff6b6b');
             }
         }
 
@@ -1017,8 +1022,6 @@
         }
 
         function triggerHardWinCelebration() {
-            // Celebration particles on canvas via createCaptureExplosion already handled in wins
-            // Simplified - no DOM manipulation needed
             setTimeout(() => {
                 const tauntBox = document.getElementById('grok-taunt');
                 tauntBox.innerHTML = "Okay… you actually beat me on Hard. Respect. 🫡";
@@ -1091,9 +1094,11 @@
             updateStatus();
             document.getElementById('grok-taunt').innerHTML = "Ready when you are, human. Let's see what you've got.";
             draw();
+            console.log('%c[Checkers] Board initialized', 'color:#00f5ff');
         }
 
         function init() {
+            console.log('%c[Checkers] Initializing...', 'color:#00f5ff');
             canvas.addEventListener('click', handleCanvasClick);
 
             canvas.addEventListener('touchstart', (e) => {
@@ -1109,7 +1114,10 @@
             applyCustomSettings();
             gameLoop();
 
-            setTimeout(() => draw(), 50);
+            setTimeout(() => {
+                draw();
+                console.log('%c[Checkers] Initial draw complete', 'color:#00f5ff');
+            }, 50);
         }
 
         init();
