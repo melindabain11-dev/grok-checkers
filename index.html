@@ -1038,7 +1038,7 @@
 
                     setTimeout(() => {
                         particle.style.transition = 'transform 1.1s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.1s ease-out';
-                        particle.style.transform = `translate(${tx}px, ${ty}px)`;
+                        particle.style.transform = `translate(${tx}px, {ty}px)`;
                         particle.style.opacity = '0';
                     }, 10);
 
@@ -1156,6 +1156,7 @@
             currentPlayer = 'red';
             updateStatus();
             gameOver = false;
+            updateStatsUI();   // <-- This ensures the win/loss/streak numbers always refresh when you start a new game
         }
 
         function initStats() {
